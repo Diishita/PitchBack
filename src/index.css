@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mi-blue: #004BA0;
+  --color-mi-blue-light: #0060CD;
+  --color-mi-blue-dark: #003673;
+  --color-mi-gold: #D1AB3E;
+  --color-mi-gold-light: #E2C05A;
+  --color-mi-gold-dark: #B08D2C;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  font-family: 'Plus Jakarta Sans', system-ui, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+}
+
+button, a {
+  cursor: pointer;
+}
