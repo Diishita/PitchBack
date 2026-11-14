@@ -2,6 +2,10 @@ import React, { useContext } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppContext } from './context/AppContext';
 import Navbar from './components/Navbar';
+import AiTestPanel from './components/AiTestPanel';
+import { VoiceAssistantProvider } from './context/VoiceAssistantContext';
+import VoiceAssistantButton from './components/VoiceAssistantButton';
+import ScrollToTop from './components/ScrollToTop';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -23,13 +27,18 @@ const ProtectedRoute = ({ children, role }) => {
 
 function App() {
   return (
+    <VoiceAssistantProvider>
     <div className="min-h-screen w-full bg-gradient-to-br from-sky-50 via-blue-50 to-amber-50 dark:from-[#001a3d] dark:via-[#002a5e] dark:to-[#001530] text-slate-900 dark:text-blue-50 font-sans transition-all duration-500">
       <Navbar />
+      <ScrollToTop />
+      <VoiceAssistantButton />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/play" element={<PlayPage />} />
         <Route path="/login" element={<Login />} />
+
+        <Route path="/ai-test" element={<AiTestPanel />} />
         
         <Route path="/dashboard" element={
           <ProtectedRoute role="user">
@@ -52,6 +61,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
+    </VoiceAssistantProvider>
   );
 }
 

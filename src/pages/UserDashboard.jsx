@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
-import { Calendar, MapPin, Clock, LogOut, CheckCircle, ChevronRight, Sun, Moon } from 'lucide-react';
+import { Calendar, MapPin, Clock, LogOut, CheckCircle, ChevronRight, Sun, Moon, Trophy } from 'lucide-react';
 import Footer from '../components/Footer';
 
 const UserDashboard = () => {
@@ -67,54 +67,52 @@ const UserDashboard = () => {
                 {matches.map(match => {
                   const isEnrolled = enrolledMatchIds.includes(match.id);
                   return (
-                    <div key={match.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 md:p-8 hover:shadow-2xl transition-all group relative overflow-hidden">
+                    <div key={match.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 md:p-8 hover:shadow-2xl transition-all group relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                       <div className={`absolute top-0 left-0 w-2 h-full ${isEnrolled ? 'bg-emerald-500' : 'bg-[#003673]'}`}></div>
                       
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            {isEnrolled && (
-                              <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 bg-emerald-500 text-white rounded-md uppercase tracking-widest shadow-sm">
-                                <CheckCircle className="w-3 h-3" /> {t('enrolled')}
-                              </span>
-                            )}
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('matchDetails')}</span>
-                          </div>
-                          
-                          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-4 tracking-tight">
-                            {match.title || 'Cricket Match'}
-                          </h3>
-                          
-                          <div className="flex flex-wrap gap-5 text-sm text-slate-600 dark:text-slate-400 font-semibold">
-                            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                              <Calendar className="w-4 h-4 text-[#D1AB3E]" />
-                              {localizeDigits(match.date)}
-                            </div>
-                            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                              <Clock className="w-4 h-4 text-[#D1AB3E]" />
-                              {localizeDigits(match.time)}
-                            </div>
-                            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                              <MapPin className="w-4 h-4 text-[#D1AB3E]" />
-                              {match.place}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 w-full md:w-auto">
-                          {!isEnrolled ? (
-                            <button
-                              onClick={() => navigate(`/enroll/${match.id}`)}
-                              className="w-full px-8 py-4 bg-[#003673] hover:bg-[#002a5e] text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 active:scale-95"
-                            >
-                              {t('enrollNow')} <ChevronRight className="w-5 h-5" />
-                            </button>
-                          ) : (
-                            <div className="w-full px-8 py-4 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl font-bold border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center gap-2 shadow-sm">
-                              <CheckCircle className="w-5 h-5" /> {t('registered')}
-                            </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          {isEnrolled && (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 bg-emerald-500 text-white rounded-md uppercase tracking-widest shadow-sm">
+                              <CheckCircle className="w-3 h-3" /> {t('enrolled')}
+                            </span>
                           )}
+                          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('matchDetails')}</span>
                         </div>
+                        
+                        <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-4 tracking-tight">
+                          {match.title || 'Cricket Match'}
+                        </h3>
+                        
+                        <div className="flex flex-wrap gap-5 text-sm text-slate-600 dark:text-slate-400 font-semibold">
+                          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                            <Calendar className="w-4 h-4 text-[#D1AB3E]" />
+                            {localizeDigits(match.date)}
+                          </div>
+                          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                            <Clock className="w-4 h-4 text-[#D1AB3E]" />
+                            {localizeDigits(match.time)}
+                          </div>
+                          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                            <MapPin className="w-4 h-4 text-[#D1AB3E]" />
+                            {match.place}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 w-full md:w-auto">
+                        {!isEnrolled ? (
+                          <button
+                            onClick={() => navigate(`/enroll/${match.id}`)}
+                            className="w-full px-8 py-4 bg-[#003673] hover:bg-[#002a5e] text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 active:scale-95"
+                          >
+                            {t('enrollNow')} <ChevronRight className="w-5 h-5" />
+                          </button>
+                        ) : (
+                          <div className="w-full px-8 py-4 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl font-bold border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center gap-2 shadow-sm">
+                            <CheckCircle className="w-5 h-5" /> {t('registered')}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -147,7 +145,7 @@ const UserDashboard = () => {
                       <div key={enrollment.id} className="group border-b border-slate-100 dark:border-slate-800 last:border-0 pb-5 last:pb-0 transition-all hover:translate-x-1">
                         <div className="flex gap-4">
                           <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-all text-emerald-500">
-                            <CheckCircle className="w-6 h-6" />
+                            <Trophy className="w-6 h-6" />
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-[#003673] dark:group-hover:text-emerald-400 transition-colors tracking-tight">

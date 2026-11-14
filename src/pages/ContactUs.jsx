@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { LanguageContext } from '../context/LanguageContext';
 import { MessageCircle, Phone, Mail, Send, MapPin } from 'lucide-react';
 import Footer from '../components/Footer';
@@ -19,6 +19,25 @@ const FacebookIcon = (props) => (
 
 const ContactUs = () => {
   const { t, localizeDigits } = useContext(LanguageContext);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Listen for voice commands to open suggestion form
+  useEffect(() => {
+    const handler = (e) => {
+      const { intent } = e.detail || {};
+      if (intent === 'open') {
+        // ensure we're on contact page; form is visible
+        // could focus the name input if needed
+        const nameInput = document.querySelector('input[placeholder]');
+        if (nameInput) nameInput.focus();
+      }
+    };
+    window.addEventListener('voice-command', handler);
+    return () => window.removeEventListener('voice-command', handler);
+  }, []);
 
   const handleSuggest = (e) => {
     e.preventDefault();

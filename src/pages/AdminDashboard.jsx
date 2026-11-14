@@ -5,18 +5,21 @@ import { LanguageContext } from '../context/LanguageContext';
 import {
   LogOut, Plus, Users, CalendarDays, ClipboardList,
   Trash2, BarChart2, Moon, Sun, ShieldBan, ShieldCheck,
-  CircleDot, Clock, MapPin, Trophy, TrendingUp
+  CircleDot, Clock, MapPin, Trophy, TrendingUp, Edit3, Eye, X
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 
 const BRAND = '#003673';
 
 const AdminDashboard = () => {
-  const { matches, users, enrollments, addMatch, deleteUser, toggleBlockUser, logoutUser, theme, toggleTheme } = useContext(AppContext);
+  const { matches, users, enrollments, addMatch, deleteMatch, updateMatch, deleteUser, toggleBlockUser, logoutUser, theme, toggleTheme } = useContext(AppContext);
   const { t, localizeDigits } = useContext(LanguageContext);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('matches');
   const [newMatch, setNewMatch] = useState({ title: '', date: '', time: '', place: '' });
+  const [editingMatch, setEditingMatch] = useState(null);
+  const [viewingPlayersFor, setViewingPlayersFor] = useState(null);
+  const [viewingEnrollment, setViewingEnrollment] = useState(null);
 
   const handleLogout = () => { logoutUser(); navigate('/'); };
 
@@ -25,6 +28,13 @@ const AdminDashboard = () => {
     if (!newMatch.title || !newMatch.date || !newMatch.time || !newMatch.place) return;
     addMatch({ ...newMatch });
     setNewMatch({ title: '', date: '', time: '', place: '' });
+  };
+
+  const handleUpdateMatch = (e) => {
+    e.preventDefault();
+    if (!editingMatch.title || !editingMatch.date || !editingMatch.time || !editingMatch.place) return;
+    updateMatch(editingMatch.id, { ...editingMatch });
+    setEditingMatch(null);
   };
 
   const cityStats = useMemo(() => {
@@ -36,7 +46,7 @@ const AdminDashboard = () => {
     return Object.keys(counts).map(city => ({ name: city, count: counts[city] }));
   }, [users]);
 
-  const COLORS = ['#0197f6', '#D1AB3E', '#10b981', '#f59e0b', '#8b5cf6'];
+  const COLORS = ['#0197f6', '#D1AB3E', '#f59e0b', '#fbbf24', '#8b5cf6'];
 
   const totalUsers = users.filter(u => u.role === 'user').length;
   const totalEnrollments = enrollments.length;
@@ -219,6 +229,35 @@ const AdminDashboard = () => {
                               {m.place}
                             </p>
                           </div>
+                          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between gap-2">
+                            <button
+                              onClick={() => setViewingPlayersFor(m)}
+                              className="px-2.5 py-1.5 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider shadow-sm hover:shadow-md active:scale-95"
+                            >
+                              <Eye className="w-3 h-3" />
+                              {t('viewEnrolledPlayers')}
+                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setEditingMatch(m)}
+                                className="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors"
+                                title={t('editMatch')}
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(t('delete') + "?")) {
+                                    deleteMatch(m.id);
+                                  }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                                title={t('delete')}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -379,6 +418,176 @@ const AdminDashboard = () => {
 
         </main>
       </div>
+
+      {/* ── Edit Match Modal ── */}
+      {editingMatch && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className={`w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-white'}`}>
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="font-bold text-lg dark:text-white">{t('editMatch')}</h3>
+              <button onClick={() => setEditingMatch(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateMatch} className="p-6 space-y-4">
+              {[
+                { label: t('matchTitleLabel'), key: 'title', type: 'text', icon: Trophy },
+                { label: t('date'), key: 'date', type: 'date', icon: CalendarDays },
+                { label: t('time'), key: 'time', type: 'time', icon: Clock },
+                { label: t('venue'), key: 'place', type: 'text', icon: MapPin },
+              ].map(({ label, key, type, icon: Icon }) => (
+                <div key={key}>
+                  <label className="block text-xs font-bold mb-1.5 uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</label>
+                  <div className="relative">
+                    <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0197f6]" />
+                    <input
+                      required
+                      type={type}
+                      value={editingMatch[key]}
+                      onChange={e => setEditingMatch({ ...editingMatch, [key]: e.target.value })}
+                      className={`w-full pl-9 pr-4 py-2.5 rounded-xl text-sm font-medium outline-none border transition-all ${
+                        theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                      }`}
+                    />
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setEditingMatch(null)} className="flex-1 py-3 text-slate-500 font-bold text-sm rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  {t('cancel')}
+                </button>
+                <button type="submit" className="flex-1 py-3 bg-[#003673] text-white font-bold text-sm rounded-xl hover:opacity-90 transition-opacity">
+                  {t('updateMatch')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── View Enrolled Players Modal ── */}
+      {viewingPlayersFor && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className={`w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-white'}`}>
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-blue-50/50 dark:bg-blue-900/10">
+              <div>
+                <h3 className="font-bold text-lg dark:text-white">{t('enrolledPlayers')}</h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">{viewingPlayersFor.title}</p>
+              </div>
+              <button onClick={() => setViewingPlayersFor(null)} className="p-2 hover:bg-white/50 dark:hover:bg-slate-800 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+              {enrollments.filter(e => e.matchId === viewingPlayersFor.id).length === 0 ? (
+                <div className="py-10 text-center text-slate-400 font-medium">{t('noEnrollmentsAdmin')}</div>
+              ) : (
+                <div className="grid gap-3">
+                  {enrollments.filter(e => e.matchId === viewingPlayersFor.id).map(e => (
+                    <div key={e.id} className={`p-4 rounded-2xl border flex items-center justify-between ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700' : 'bg-slate-50/50 border-slate-100'}`}>
+                      <div>
+                        <p className="font-bold text-sm dark:text-white">{e.playerName}</p>
+                        <p className="text-xs text-slate-500">{localizeDigits(e.contactNumber)}</p>
+                      </div>
+                      <button 
+                        onClick={() => setViewingEnrollment(e)}
+                        className="px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#0197f6] shadow-sm hover:shadow-md transition-all"
+                      >
+                        {t('viewForm')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Individual Enrollment Form Modal ── */}
+      {viewingEnrollment && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+          <div className={`w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-white'}`}>
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between" style={{ backgroundColor: BRAND }}>
+              <h3 className="font-bold text-lg text-white">{t('playerEnrollmentForm')}</h3>
+              <button onClick={() => setViewingEnrollment(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+            <div className="p-8 max-h-[70vh] overflow-y-auto space-y-8">
+              {/* Player Detail Section */}
+              <section>
+                <div className="flex items-center gap-3 mb-4 text-[#0197f6]">
+                   <Users className="w-5 h-5" />
+                   <h4 className="font-bold uppercase tracking-wider text-xs">{t('playerDetails')}</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('playerNameLabel')}</p>
+                    <p className="font-semibold dark:text-white">{viewingEnrollment.playerName}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('contactNumberLabel')}</p>
+                    <p className="font-semibold dark:text-white">{localizeDigits(viewingEnrollment.contactNumber)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('dobLabel')}</p>
+                    <p className="font-semibold dark:text-white">{localizeDigits(viewingEnrollment.dob)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('addressLabel')}</p>
+                    <p className="font-semibold dark:text-white leading-relaxed">{viewingEnrollment.address}</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Emergency Section */}
+              <section>
+                <div className="flex items-center gap-3 mb-4 text-red-500">
+                   <ShieldBan className="w-5 h-5" />
+                   <h4 className="font-bold uppercase tracking-wider text-xs">{t('emergencyInfo')}</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('fullNameLabel')}</p>
+                    <p className="font-semibold dark:text-white">{viewingEnrollment.emergencyName}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('relationLabel')}</p>
+                    <p className="font-semibold dark:text-white">{viewingEnrollment.emergencyRelation}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('contactNumberLabel')}</p>
+                    <p className="font-semibold dark:text-white">{localizeDigits(viewingEnrollment.emergencyContact)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('ageLabel')}</p>
+                    <p className="font-semibold dark:text-white">{localizeDigits(viewingEnrollment.emergencyAge)}</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Health Section */}
+              <section>
+                <div className="flex items-center gap-3 mb-4 text-amber-500">
+                   <ClipboardList className="w-5 h-5" />
+                   <h4 className="font-bold uppercase tracking-wider text-xs">{t('additionalInfo')}</h4>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('medicalInfoLabel')}</p>
+                    <p className="text-sm dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">{viewingEnrollment.medicalInfo || 'None'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('requirementsLabel')}</p>
+                    <p className="text-sm dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">{viewingEnrollment.requirements || 'None'}</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

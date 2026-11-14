@@ -37,8 +37,8 @@ const HomePage = () => {
             {t('heroSubtext')}
           </p>
 
-          <div className="mt-12 flex gap-5">
-            <Link to="/play" className="px-8 py-4 bg-gradient-to-r from-[#D1AB3E] to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-[#004BA0] font-bold rounded-full shadow-xl shadow-[#D1AB3E]/20 transition-all transform hover:-translate-y-1 flex items-center gap-2 text-lg uppercase tracking-wide">
+          <div className="mt-12 flex flex-col sm:flex-row gap-4">
+            <Link to="/play" className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-[#D1AB3E] to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-[#004BA0] font-bold rounded-full shadow-xl shadow-[#D1AB3E]/20 transition-all transform hover:-translate-y-1 gap-2 text-lg uppercase tracking-wide">
               {t('exploreMatches')} <ChevronRight className="w-6 h-6" />
             </Link>
           </div>

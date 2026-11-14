@@ -30,6 +30,7 @@ const Navbar = () => {
     <>
       <Link to="/" className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">{t('home')}</Link>
       <Link to="/play" className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">{t('play')}</Link>
+      <Link to="/ai-test" className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">{t('ai')}</Link>
       <Link to="/contact" className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">{t('contact')}</Link>
     </>
   );
@@ -43,7 +44,7 @@ const Navbar = () => {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#D1AB3E] to-yellow-300 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform rotate-3">
             <CircleDot className="w-6 h-6 text-[#004BA0]" />
           </div>
-          <span className="font-bold text-2xl tracking-tight hidden sm:block text-white">PitchBack</span>
+          <span className="font-bold text-2xl tracking-tight hidden sm:block text-white">{t('pitchback')}</span>
         </Link>
 
         {/* Desktop Nav */}
@@ -56,12 +57,12 @@ const Navbar = () => {
           {/* Language Selector */}
           <div className="relative group">
             <button className="flex items-center gap-2 font-medium text-sm hover:text-[#D1AB3E] transition-colors cursor-pointer">
-              <Globe className="w-4 h-4" /> {language.toUpperCase()}
+              <Globe className="w-4 h-4" /> {language === 'en' ? t('english') : language === 'hi' ? t('hindi') : t('marathi')}
             </button>
             <div className="absolute top-full right-0 mt-2 w-32 bg-white rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col overflow-hidden">
-              <button onClick={() => changeLanguage('en')} className="px-4 py-2 text-left text-sm text-slate-800 hover:bg-slate-100 font-medium cursor-pointer">English</button>
-              <button onClick={() => changeLanguage('hi')} className="px-4 py-2 text-left text-sm text-slate-800 hover:bg-slate-100 font-medium cursor-pointer">हिंदी (Hindi)</button>
-              <button onClick={() => changeLanguage('mr')} className="px-4 py-2 text-left text-sm text-slate-800 hover:bg-slate-100 font-medium cursor-pointer">मराठी (Marathi)</button>
+              <button onClick={() => changeLanguage('en')} className="px-4 py-2 text-left text-sm text-slate-800 hover:bg-slate-100 font-medium cursor-pointer">{t('english')}</button>
+              <button onClick={() => changeLanguage('hi')} className="px-4 py-2 text-left text-sm text-slate-800 hover:bg-slate-100 font-medium cursor-pointer">{t('hindi')}</button>
+              <button onClick={() => changeLanguage('mr')} className="px-4 py-2 text-left text-sm text-slate-800 hover:bg-slate-100 font-medium cursor-pointer">{t('marathi')}</button>
             </div>
           </div>
 

@@ -112,6 +112,10 @@ export const AppProvider = ({ children }) => {
     setMatches([...matches, newMatch]);
   };
 
+  const updateMatch = (matchId, updatedMatch) => {
+    setMatches(matches.map(m => m.id === matchId ? { ...m, ...updatedMatch } : m));
+  };
+
   const addEnrollment = (enrollment) => {
     const newEnrollment = { ...enrollment, id: Date.now().toString(), createdAt: new Date().toISOString() };
     setEnrollments([...enrollments, newEnrollment]);
@@ -120,6 +124,11 @@ export const AppProvider = ({ children }) => {
   const deleteUser = (userId) => {
     setUsers(users.filter(u => u.id !== userId));
     setEnrollments(enrollments.filter(e => e.userId !== userId));
+  };
+
+  const deleteMatch = (matchId) => {
+    setMatches(matches.filter(m => m.id !== matchId));
+    setEnrollments(enrollments.filter(e => e.matchId !== matchId));
   };
 
   const toggleBlockUser = (userId) => {
@@ -131,7 +140,7 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider value={{
       users, matches, enrollments, currentUser, theme, recentLogins,
-      loginUser, logoutUser, addMatch, addEnrollment, deleteUser,
+      loginUser, logoutUser, addMatch, deleteMatch, updateMatch, addEnrollment, deleteUser,
       toggleBlockUser, toggleTheme, removeRecentLogin
     }}>
       {children}

@@ -1,38 +1,201 @@
-import React, { useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useContext, useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
-import { CalendarDays, MapPin, Clock, Trophy } from 'lucide-react';
+import { CalendarDays, MapPin, Clock, Trophy, Users, Mic, X, Brain, ChevronRight } from 'lucide-react';
 import Footer from '../components/Footer';
 
 const PlayPage = () => {
-  const { matches, currentUser } = useContext(AppContext);
-  const { t, localizeDigits } = useContext(LanguageContext);
+  const { matches, enrollments, currentUser } = useContext(AppContext);
+  const { t, localizeDigits, language } = useContext(LanguageContext);
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredMatches, setFilteredMatches] = useState(matches);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [speechError, setSpeechError] = useState('');
+  const recognitionRef = useRef(null);
 
   const handleEnrollClick = (matchId) => {
     navigate(`/enroll/${matchId}`);
   };
 
+  useEffect(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      setFilteredMatches(matches);
+      return;
+    }
+
+    setFilteredMatches(
+      matches.filter((m) =>
+        m.title.toLowerCase().includes(normalizedQuery) ||
+        m.place.toLowerCase().includes(normalizedQuery)
+      )
+    );
+  }, [matches, searchQuery]);
+
+  useEffect(() => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      setSpeechError('Voice commands are not supported in this browser.');
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setVoiceTranscript(transcript);
+      handleVoiceSearch(transcript);
+      setIsListening(false);
+    };
+
+    recognition.onerror = () => {
+      setSpeechError('Voice recognition failed. Please try again.');
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+  }, [language]);
+
+  // Global voice-command event listener
+  useEffect(() => {
+    const handler = (e) => {
+      const { intent, payload, transcript } = e.detail || {};
+      if (intent === 'search') {
+        if (payload) setSearchQuery(payload);
+      }
+      if (intent === 'dictate') {
+        if (payload) setSearchQuery(payload);
+      }
+      if (intent === 'open' && payload === '/ai-test') {
+        // nothing special needed here
+      }
+      if (intent === 'enroll' || intent === 'enroll-on-play') {
+        if (filteredMatches && filteredMatches.length > 0) {
+          navigate(`/enroll/${filteredMatches[0].id}`);
+        } else if (payload) {
+          setSearchQuery(payload);
+          setTimeout(() => {
+            if (filteredMatches && filteredMatches.length > 0) navigate(`/enroll/${filteredMatches[0].id}`);
+          }, 700);
+        } else {
+          setSpeechError(t('voiceHelpHint'));
+        }
+      }
+    };
+
+    window.addEventListener('voice-command', handler);
+    return () => window.removeEventListener('voice-command', handler);
+  }, [filteredMatches, navigate, t]);
+
+  const normalizeCommand = (text) => {
+    return text
+      .toLowerCase()
+      .replace(/(find|search|show|matches?|match|खोज|शोध|सापडवा|सापडवा|शोधा|मॅच|मैच)/g, '')
+      .replace(/(for|for me|for the|के लिए|साठी|का|ची|ना|मे)/g, '')
+      .trim();
+  };
+
+  const handleVoiceSearch = (transcript) => {
+    const query = normalizeCommand(transcript);
+    if (query) {
+      setSearchQuery(query);
+      setSpeechError('');
+    } else {
+      setSpeechError('Please say a match type, location or format to search.');
+    }
+  };
+
+  const handleVoiceToggle = () => {
+    if (!recognitionRef.current) return;
+    setSpeechError('');
+    setIsListening((prev) => {
+      const next = !prev;
+      if (next) {
+        recognitionRef.current.start();
+      } else {
+        recognitionRef.current.stop();
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-amber-50 dark:from-[#001a3d] dark:via-[#002a5e] dark:to-[#001530] pt-24 pb-12 font-sans transition-all duration-500">
       <div className="max-w-7xl mx-auto px-6 md:px-12 mb-32">
-        <div className="text-center mb-16">
+        <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold text-[#004BA0] dark:text-blue-400 tracking-tight flex justify-center items-center gap-4">
             <Trophy className="w-10 h-10 text-[#D1AB3E]" /> {t('upcomingMatches')} <Trophy className="w-10 h-10 text-[#D1AB3E]" />
           </h1>
           <div className="w-24 h-1.5 bg-[#D1AB3E] mx-auto mt-6 rounded-full"></div>
         </div>
 
-        {matches.length === 0 ? (
+        <div className="mb-10 max-w-4xl mx-auto bg-white/90 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Search matches by voice or keyword</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Use English, हिंदी, or मराठी to find suitable matches quickly.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleVoiceToggle}
+                className={`inline-flex items-center gap-2 px-5 py-3 rounded-3xl text-sm font-semibold transition ${isListening ? 'bg-[#004BA0] text-white' : 'bg-[#D1AB3E] text-slate-950 hover:bg-[#b5911c]'}`}
+              >
+                <Mic className="w-4 h-4" />
+                {isListening ? t('listening') : t('startVoiceHelp')}
+              </button>
+              <Link
+                to="/ai-test"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-3xl text-sm font-semibold bg-gradient-to-r from-[#1d4ed8] to-[#22c55e] text-white hover:shadow-lg transition"
+              >
+                <Brain className="w-4 h-4" />
+                AI Recommendations
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by format, place, or match type..."
+              className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-3 text-slate-900 shadow-sm outline-none transition focus:border-[#004BA0] focus:ring-4 focus:ring-[#004BA0]/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setVoiceTranscript('');
+                setSpeechError('');
+              }}
+              className="rounded-3xl bg-slate-900 text-white px-5 py-3 font-semibold hover:bg-slate-800 transition"
+            >
+              Clear
+            </button>
+          </div>
+          {voiceTranscript && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Heard: "{voiceTranscript}"</p>}
+          {speechError && <p className="mt-3 text-sm text-red-500">{speechError}</p>}
+        </div>
+
+        {filteredMatches.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-12 rounded-3xl text-center shadow-xl">
             <Trophy className="w-16 h-16 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">{t('noMatches')}</h3>
-            <p className="text-slate-500 mt-2">{t('checkBack')}</p>
+            <p className="text-slate-500 dark:text-slate-400 text-lg font-medium italic mt-3">check back soon ...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {matches.map(m => (
+            {filteredMatches.map(m => (
               <div key={m.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group">
                 <div className="h-32 bg-gradient-to-br from-[#004BA0] to-[#002652] relative flex items-center justify-center">
                   <div className="absolute inset-0 bg-[url('/hero-bg.png')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
@@ -69,6 +232,24 @@ const PlayPage = () => {
                         <span className="text-xs font-bold text-slate-400 uppercase">{t('venue')}</span>
                         <span className="font-semibold">{m.place}</span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Enrolled Players List for Users */}
+                  <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest flex items-center gap-2">
+                       <Users className="w-3 h-3 text-[#D1AB3E]" /> {t('enrolledPlayers')}
+                    </p>
+                    <div className="flex flex-wrap gap-2 max-h-[80px] overflow-y-auto">
+                      {enrollments.filter(e => e.matchId === m.id).length === 0 ? (
+                        <p className="text-xs text-slate-400 italic">No players yet. Be the first!</p>
+                      ) : (
+                        enrollments.filter(e => e.matchId === m.id).map(e => (
+                          <span key={e.id} className="px-2 py-1 bg-white dark:bg-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-md shadow-sm border border-slate-100 dark:border-slate-600">
+                            {e.playerName}
+                          </span>
+                        ))
+                      )}
                     </div>
                   </div>
 

@@ -4,10 +4,12 @@ import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
 import { User, MapPin, Phone, X, ArrowRight, ShieldCheck } from 'lucide-react';
 
-const MAHARASHTRA_CITIES = [
-  "Mumbai", "Pune", "Nagpur", "Nashik", "Thane", 
-  "Chhatrapati Sambhajinagar", "Solapur", "Amravati", 
-  "Navi Mumbai", "Kolhapur", "Akola", "Jalgaon", "Latur"
+const WESTERN_LINE_STATIONS = [
+  "Borivali", "Kandivali", "Malad", "Goregaon", "Ram Mandir", 
+  "Jogeshwari", "Andheri", "Vile Parle", "Santa Cruz", "Khar Road", 
+  "Bandra", "Mahim", "Matunga Road", "Dadar", "Prabhadevi", 
+  "Lower Parel", "Mahalaxmi", "Mumbai Central", "Grant Road", 
+  "Charni Road", "Marine Lines", "Churchgate"
 ];
 
 const Login = () => {
@@ -15,10 +17,14 @@ const Login = () => {
   const [contactNumber, setContactNumber] = useState('');
   const [city, setCity] = useState('');
   const [showRecent, setShowRecent] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [speechError, setSpeechError] = useState('');
   const dropdownRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const { loginUser, currentUser, recentLogins, removeRecentLogin } = useContext(AppContext);
-  const { t, localizeDigits } = useContext(LanguageContext);
+  const { t, localizeDigits, language } = useContext(LanguageContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,6 +43,69 @@ const Login = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      setSpeechError('Voice commands are not supported in this browser.');
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setVoiceTranscript(transcript);
+      parseVoiceCommand(transcript);
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      setSpeechError('Voice recognition failed. Please try again.');
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+  }, [language]);
+
+  const parseVoiceCommand = (transcript) => {
+    const normalized = transcript.toLowerCase();
+
+    const usernameMatch = normalized.match(/(name is|naam hai|माझं नाव|माझं नाव आहे|mi naav)\s+([\w\s]+)/i);
+    const cityMatch = normalized.match(/(city|sheher|शहर|नगर|city is|city name is|city ka naam|शहर|नगर)\s*[: ]*([\w\s]+)/i);
+    const phoneMatch = normalized.match(/(phone|number|mobile|मोबाइल|नंबर|फोन)\s*[: ]*([0-9]+)/i);
+
+    if (usernameMatch) setUsername(usernameMatch[2].trim());
+    if (cityMatch) setCity(cityMatch[2].trim());
+    if (phoneMatch) setContactNumber(phoneMatch[2].trim());
+
+    if (normalized.includes('register') || normalized.includes('sign up') || normalized.includes('register me') || normalized.includes('मुझे रजिस्टर करें') || normalized.includes('मला नोंदवा')) {
+      if (username && contactNumber && city) {
+        loginUser(username, contactNumber, city);
+      }
+    }
+  };
+
+  const handleVoiceToggle = () => {
+    if (!recognitionRef.current) return;
+    setSpeechError('');
+    setIsListening((prev) => {
+      const next = !prev;
+      if (next) {
+        recognitionRef.current.start();
+      } else {
+        recognitionRef.current.stop();
+      }
+      return next;
+    });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -148,25 +217,40 @@ const Login = () => {
               </div>
               <input
                 type="text"
-                list="maharashtra-cities"
+                list="western-line-stations"
                 required={!isAdmin}
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#004BA0]/50 outline-none transition-all text-slate-900 dark:text-white text-sm font-medium"
                 placeholder={t('cityPlaceholder')}
               />
-              <datalist id="maharashtra-cities">
-                {MAHARASHTRA_CITIES.map(c => <option key={c} value={c} />)}
+              <datalist id="western-line-stations">
+                {WESTERN_LINE_STATIONS.map(c => <option key={c} value={c} />)}
               </datalist>
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="w-full py-4 px-4 bg-gradient-to-r from-[#003673] to-[#002244] hover:from-[#002244] hover:to-[#001122] text-[#D1AB3E] text-sm font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 mt-6 group uppercase tracking-widest"
-          >
-            {t('loginSignup')} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
+          <div className="grid gap-4">
+            <button
+              type="button"
+              onClick={handleVoiceToggle}
+              className="w-full py-4 px-4 bg-gradient-to-r from-[#004BA0] to-[#0060CD] hover:from-[#003673] hover:to-[#004680] text-white text-sm font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
+            >
+              {isListening ? 'Listening...' : 'Register by voice'}
+            </button>
+            {speechError && (
+              <p className="text-sm text-red-500">{speechError}</p>
+            )}
+            {voiceTranscript && (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{`Heard: "${voiceTranscript}"`}</p>
+            )}
+            <button
+              type="submit"
+              className="w-full py-4 px-4 bg-gradient-to-r from-[#003673] to-[#002244] hover:from-[#002244] hover:to-[#001122] text-[#D1AB3E] text-sm font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 mt-2 group uppercase tracking-widest"
+            >
+              {t('loginSignup')} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
         </form>
       </div>
     </div>
