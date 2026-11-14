@@ -42,6 +42,8 @@ Configure MongoDB and authentication before starting the API:
 4. To create the first administrator, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. Use a unique email and any non-empty password up to 72 UTF-8 bytes. On the first API start, the administrator is created with a bcrypt-hashed password. Remove both bootstrap variables after the account is created; the account remains in MongoDB.
 5. Never commit `.env` or share its values.
 
+To reset an existing administrator password, set `ADMIN_EMAIL` to the exact administrator email and `ADMIN_PASSWORD` to the new password in `.env`, then run `npm run admin:reset-password`. The command only resets a matching existing administrator; it does not create or promote accounts. Remove the bootstrap variables after the reset.
+
 Run the API and frontend in separate terminals:
 
 ```sh
