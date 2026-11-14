@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import { api } from '../services/api';
+import { API_BASE_URL, api } from '../services/api';
 
 const fetchAppData = async () => {
   const [user, matches] = await Promise.all([
@@ -77,7 +77,10 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (dataLoading) return undefined;
 
-    const socket = io();
+    const socket = io(API_BASE_URL || undefined, {
+      transports: ['websocket'],
+      withCredentials: true,
+    });
     let isFirstConnection = true;
     socket.on('connect', () => {
       if (isFirstConnection) {

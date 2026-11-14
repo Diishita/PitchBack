@@ -1,8 +1,19 @@
 import { Server } from 'socket.io';
 import { User } from './models/User.js';
 
-export const attachRealtime = (httpServer, sessionMiddleware) => {
-  const io = new Server(httpServer);
+export const attachRealtime = (httpServer, sessionMiddleware, allowedOrigins = []) => {
+  const io = new Server(httpServer, {
+    ...(allowedOrigins.length ? {
+      cors: {
+        origin: allowedOrigins,
+        credentials: true,
+      },
+      allowRequest: (request, callback) => {
+        const origin = request.headers.origin;
+        callback(null, !origin || allowedOrigins.includes(origin));
+      },
+    } : {}),
+  });
   io.engine.use(sessionMiddleware);
   io.use(async (socket, next) => {
     const userId = socket.request.session?.userId;

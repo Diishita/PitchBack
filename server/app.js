@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import express from 'express';
+import cors from 'cors';
 import session from 'express-session';
 import mongoose from 'mongoose';
 import { rateLimit } from 'express-rate-limit';
@@ -8,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import matchRoutes from './routes/matches.js';
 import enrollmentRoutes from './routes/enrollments.js';
 import userRoutes from './routes/users.js';
+import aiRoutes from './routes/ai.js';
 
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -24,10 +26,28 @@ const authRateLimit = rateLimit({
 
 export const createApp = ({ sessionStore } = {}) => {
   const app = express();
+  const isProduction = process.env.NODE_ENV === 'production';
+  const allowedOrigins = (process.env.FRONTEND_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
   const sessionSecret = process.env.SESSION_SECRET || randomBytes(32).toString('hex');
 
   app.disable('x-powered-by');
+  if (isProduction) app.set('trust proxy', 1);
   app.use(helmet());
+  if (allowedOrigins.length) {
+    app.use(cors({
+      origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(Object.assign(new Error('Origin is not allowed.'), {
+          statusCode: 403,
+          code: 'ORIGIN_NOT_ALLOWED',
+        }));
+      },
+      credentials: true,
+    }));
+  }
   app.use(express.json({ limit: '100kb' }));
   const sessionMiddleware = session({
     name: 'pitchback.sid',
@@ -35,10 +55,11 @@ export const createApp = ({ sessionStore } = {}) => {
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    proxy: isProduction,
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction,
       maxAge: 8 * 60 * 60 * 1000,
     },
   });
@@ -64,6 +85,7 @@ export const createApp = ({ sessionStore } = {}) => {
   app.use('/api/matches', matchRoutes);
   app.use('/api/enrollments', enrollmentRoutes);
   app.use('/api/users', userRoutes);
+  app.use('/api/ai', aiRoutes);
 
   app.use((req, _res, next) => {
     next(Object.assign(new Error(`Route not found: ${req.method} ${req.path}`), {

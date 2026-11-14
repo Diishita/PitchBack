@@ -1,9 +1,10 @@
-const API_BASE = '/api';
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const API_BASE = `${API_BASE_URL}/api`;
 
 const request = async (path, { method = 'GET', body, signal } = {}) => {
   const response = await fetch(`${API_BASE}${path}`, {
     method,
-    credentials: 'same-origin',
+    credentials: 'include',
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
@@ -55,5 +56,15 @@ export const api = {
       body: { isBlocked },
     }),
     remove: (id) => request(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
+  ai: {
+    matchRecommendation: (userProfile) => request('/ai/match-recommendation', {
+      method: 'POST',
+      body: { userProfile },
+    }),
+    fitnessAdvice: (matchFormat, physicalConstraints) => request('/ai/fitness-advice', {
+      method: 'POST',
+      body: { matchFormat, physicalConstraints },
+    }),
   },
 };

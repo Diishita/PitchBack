@@ -62,6 +62,15 @@ export const blockUserSchema = z.object({
   isBlocked: z.boolean(),
 });
 
+export const matchRecommendationSchema = z.object({
+  userProfile: z.string().trim().min(1).max(2000),
+});
+
+export const fitnessAdviceSchema = z.object({
+  matchFormat: z.enum(['Walking Cricket', 'T20', 'Soft-ball Cricket', 'Friendly Match', 'Masters Cricket']),
+  physicalConstraints: z.string().trim().max(2000).optional().default(''),
+});
+
 export const enrollmentUpdateSchema = enrollmentCreateSchema
   .omit({ matchId: true })
   .partial()

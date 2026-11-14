@@ -39,9 +39,11 @@ const createAdminIfConfigured = async () => {
 };
 
 const startServer = async () => {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('The API is configured for local development only.');
-  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  const frontendOrigins = (process.env.FRONTEND_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
@@ -50,6 +52,12 @@ const startServer = async () => {
   if (process.env.SESSION_SECRET
     && Buffer.byteLength(process.env.SESSION_SECRET, 'utf8') < 32) {
     throw new Error('SESSION_SECRET must contain at least 32 bytes.');
+  }
+  if (isProduction && !process.env.SESSION_SECRET) {
+    throw new Error('SESSION_SECRET is required in production.');
+  }
+  if (isProduction && !frontendOrigins.length) {
+    throw new Error('FRONTEND_ORIGINS is required in production.');
   }
 
   await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
@@ -66,10 +74,10 @@ const startServer = async () => {
   });
   const app = createApp({ sessionStore });
   const httpServer = createServer(app);
-  const io = attachRealtime(httpServer, app.get('sessionMiddleware'));
+  const io = attachRealtime(httpServer, app.get('sessionMiddleware'), frontendOrigins);
   app.set('io', io);
   const port = Number(process.env.PORT || 5000);
-  const host = process.env.API_HOST || '127.0.0.1';
+  const host = process.env.API_HOST || (isProduction ? '0.0.0.0' : '127.0.0.1');
   httpServer.listen(port, host, () => {
     console.log(`[API] Listening at http://${host}:${port}`);
   });

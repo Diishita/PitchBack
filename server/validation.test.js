@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   enrollmentCreateSchema,
+  fitnessAdviceSchema,
   loginSchema,
   matchCreateSchema,
+  matchRecommendationSchema,
   matchUpdateSchema,
   registerSchema,
 } from './validation.js';
@@ -57,6 +59,17 @@ test('allows short non-empty passwords, normalizes email, and strips client-supp
     contactNumber: '9876543210',
     city: 'Mumbai',
     role: 'admin',
+  });
+
+  test('validates AI inputs and trims user-provided text', () => {
+    assert.deepEqual(matchRecommendationSchema.parse({ userProfile: '  Former player  ' }), {
+      userProfile: 'Former player',
+    });
+    assert.equal(matchRecommendationSchema.safeParse({ userProfile: ' ' }).success, false);
+    assert.equal(fitnessAdviceSchema.safeParse({
+      matchFormat: 'Walking Cricket',
+      physicalConstraints: 'x'.repeat(2001),
+    }).success, false);
   });
   assert.equal(registration.success, true);
   assert.equal(registration.data.email, 'player@example.com');

@@ -11,6 +11,7 @@ export default function AiTestPanel() {
   const [playerProfile, setPlayerProfile] = useState('');
   const [aiRecommendation, setAiRecommendation] = useState('');
   const [isLoadingMatch, setIsLoadingMatch] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   // Fitness Advisor State
   const [matchFormat, setMatchFormat] = useState('Walking Cricket');
@@ -57,10 +58,14 @@ export default function AiTestPanel() {
 
     setIsLoadingMatch(true);
     setAiRecommendation('');
-
-    const response = await getMatchRecommendation(playerProfile);
-    setAiRecommendation(response);
-    setIsLoadingMatch(false);
+    setAiError('');
+    try {
+      setAiRecommendation(await getMatchRecommendation(playerProfile));
+    } catch (error) {
+      setAiError(error.message);
+    } finally {
+      setIsLoadingMatch(false);
+    }
   };
 
   const handleGenerateFitness = async () => {
@@ -68,10 +73,14 @@ export default function AiTestPanel() {
 
     setIsLoadingFitness(true);
     setFitnessRoutine('');
-
-    const response = await getFitnessSafetyAdvisor(matchFormat, physicalConstraints);
-    setFitnessRoutine(response);
-    setIsLoadingFitness(false);
+    setAiError('');
+    try {
+      setFitnessRoutine(await getFitnessSafetyAdvisor(matchFormat, physicalConstraints));
+    } catch (error) {
+      setAiError(error.message);
+    } finally {
+      setIsLoadingFitness(false);
+    }
   };
 
   return (
@@ -129,6 +138,7 @@ export default function AiTestPanel() {
                     className="w-full rounded-3xl border border-slate-300 bg-white px-5 py-4 text-slate-900 shadow-sm outline-none transition focus:border-[#1d4ed8] focus:ring-4 focus:ring-[#1d4ed8]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-sky-400 dark:focus:ring-sky-400/15"
                   />
 
+                  <p className="text-sm text-slate-600 dark:text-slate-300">{t('aiPrivacyNotice')}</p>
                   <button
                     onClick={handleFindMatch}
                     disabled={isLoadingMatch}
@@ -160,6 +170,7 @@ export default function AiTestPanel() {
                   <p className="mt-5 text-base leading-8 text-slate-700 dark:text-slate-200 whitespace-pre-line">{aiRecommendation}</p>
                 </div>
               )}
+              {aiError && <p role="alert" className="mt-4 text-sm font-medium text-red-700 dark:text-red-300">{aiError}</p>}
             </div>
           </div>
         )}
@@ -210,6 +221,7 @@ export default function AiTestPanel() {
                     className="w-full rounded-3xl border border-slate-300 bg-white px-5 py-4 text-slate-900 shadow-sm outline-none transition focus:border-[#D1AB3E] focus:ring-4 focus:ring-[#D1AB3E]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-[#D1AB3E] dark:focus:ring-[#D1AB3E]/15"
                   />
 
+                  <p className="text-sm text-slate-600 dark:text-slate-300">{t('aiPrivacyNotice')}</p>
                   <button
                     onClick={handleGenerateFitness}
                     disabled={isLoadingFitness}
@@ -246,6 +258,7 @@ export default function AiTestPanel() {
                   <p className="mt-5 text-base leading-8 text-slate-700 dark:text-slate-200 whitespace-pre-line">{fitnessRoutine}</p>
                 </div>
               )}
+              {aiError && <p role="alert" className="mt-4 text-sm font-medium text-red-700 dark:text-red-300">{aiError}</p>}
             </div>
           </div>
         )}

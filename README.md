@@ -20,6 +20,7 @@ PitchBack is a cricket community portal concept for retired players. It helps pl
 - Google GenAI SDK
 - Express and MongoDB/Mongoose
 - Zod request validation
+- Socket.IO realtime notifications
 
 ## Run locally
 
@@ -78,8 +79,7 @@ Then open `http://127.0.0.1:5174`.
 
 ## API
 
-The Vite development server proxies `/api` requests to the local Express server.
-Socket.IO broadcasts match-list changes to connected visitors and refreshes authenticated users' enrollment data without sending personal details in event payloads.
+The Vite development server proxies `/api` and Socket.IO requests to the local Express server. Socket.IO broadcasts match-list changes to connected visitors and refreshes authenticated users' enrollment data without sending personal details in event payloads.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -93,10 +93,29 @@ Socket.IO broadcasts match-list changes to connected visitors and refreshes auth
 | PATCH, DELETE | `/api/enrollments/:id` | Update or delete an enrollment (admin only) |
 | GET | `/api/users` | List users (admin only) |
 | PATCH, DELETE | `/api/users/:id/block`, `/api/users/:id` | Block or delete a user (admin only) |
+| POST | `/api/ai/match-recommendation`, `/api/ai/fitness-advice` | Generate Gemini recommendations on the server |
 
-Passwords are bcrypt-hashed; sessions are stored in MongoDB and use an HttpOnly, SameSite cookie. New registrations always receive the `user` role. The admin role can only be assigned by the private first-admin bootstrap settings. Enrollment requests take their user ID from the authenticated session, not from client input. Deleting a match or user also removes associated enrollments.
+Passwords are bcrypt-hashed; sessions are stored in MongoDB and use an HttpOnly cookie. Production sessions require HTTPS and use credentialed CORS restricted to `FRONTEND_ORIGINS`. New registrations always receive the `user` role. The admin role can only be assigned by the private first-admin bootstrap settings. Enrollment requests take their user ID from the authenticated session, not from client input. Deleting a match or user also removes associated enrollments.
 
-**The API is intentionally local-development only.** Native startup binds to `127.0.0.1`; Docker publishes its ports only on the local machine. The API refuses to start in production. Enrollment records include emergency and medical information; use fictional test data only, and do not expose this API to a network.
+**Use fictional test data for the project demo.** Enrollment records include emergency and medical information. The local Compose ports are bound to `127.0.0.1`; a hosted deployment must use HTTPS and private environment variables.
+
+## Deploy for a project demo
+
+The local Compose stack is for the Docker/container checklist and local demos. For a live Vercel URL, deploy the Vite frontend to Vercel and the API as a Docker web service on a persistent Node host such as Render. The API and Socket.IO need to be reachable from the browser; this repository's `Dockerfile.api` is the production API image, separate from the local development `Dockerfile`.
+
+1. Import this GitHub repository into Vercel as a Vite project. Use the repository root, build command `npm run build`, and output directory `dist`. Vercel rewrites app routes to `index.html` so direct links such as `/login` work.
+2. Deploy a Render **Web Service** from the same repository using Dockerfile path `./Dockerfile.api` and repository root as the build context. Set:
+   - `NODE_ENV=production`
+   - `MONGODB_URI` to the private Atlas connection string
+   - `SESSION_SECRET` to a newly generated random value of at least 32 bytes
+   - `FRONTEND_ORIGINS` to the exact Vercel URL, including `https://` and without a trailing slash
+   - `GEMINI_API_KEY` if Gemini recommendations should be enabled
+
+   Render supplies `PORT`; the container binds to `0.0.0.0`. Use `/api/health` as the health-check path. Do not add secrets to GitHub or Vercel frontend variables.
+3. Copy the Render service's HTTPS origin into Vercel's `VITE_API_URL` environment variable (for example `https://pitchback-api.onrender.com`, without `/api`), then redeploy the Vercel project. Keep the Gemini key only on the API host, named `GEMINI_API_KEY` (not `VITE_GEMINI_API_KEY`).
+4. Test signup/login, match loading, an admin action, enrollment access, the `/api/health` endpoint, and the Socket.IO connection on the live URLs. Some browsers restrict cross-site cookies; if session login does not persist, use a custom domain arrangement that puts the frontend and API on the same site.
+
+Vercel's WebSocket support is currently in public beta and has function-duration limits. This project uses a persistent Docker API service for its live Socket.IO server; its client reconnects and reloads data after reconnecting.
 
 ## Checks
 
@@ -106,17 +125,11 @@ npm test
 npm run build
 ```
 
-The tests cover match-search helpers, password and request validation, and API health and authorization behavior.
+The tests cover match-search helpers, password and request validation, API health and authorization behavior, CORS allowlisting, AI configuration errors, and realtime event payloads.
 
 ## Gemini configuration
 
-The current frontend reads `VITE_GEMINI_API_KEY` for Gemini features. For local development, set it in an ignored local environment file such as `.env.local`:
-
-```text
-VITE_GEMINI_API_KEY=your-key
-```
-
-Never commit a real key. Vite exposes variables prefixed with `VITE_` to browser code, so this client-side setup is for a local project demo only; it is not suitable for protecting a production API key. The Gemini requests should move behind a server-side API before production deployment.
+Gemini requests are sent through the API. Set the private `GEMINI_API_KEY` in the API host's environment; do not use a `VITE_` prefix, because Vite exposes those variables to browser code. For local Docker development, add `GEMINI_API_KEY` to your ignored project-root `.env` file. The AI panel explains that submitted text is processed by Google Gemini; avoid names, contact details, and sensitive medical information. AI output is not medical advice.
 
 ## Current project limitations
 
@@ -124,6 +137,6 @@ Never commit a real key. Vite exposes variables prefixed with `VITE_` to browser
 - Email verification and password recovery are not implemented.
 - Existing match and enrollment data in `localStorage` is not automatically migrated to MongoDB.
 - Existing demo accounts are not migrated; create regular accounts through the sign-up form and bootstrap an administrator with the private `.env` settings.
-- The Gemini feature calls the provider from the browser, as described above.
+- The contact suggestion form is currently a UI-only demo and does not save submissions.
 
-These are known limitations of the current project and it should not be represented as production-ready full-stack functionality.
+Email verification and password recovery are also not implemented. Treat hosted deployments as a project demo, use fictional enrollment data, and do not present this as a production service for real player medical records.
