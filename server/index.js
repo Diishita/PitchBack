@@ -18,8 +18,8 @@ const createAdminIfConfigured = async () => {
   if (!email || !password) {
     throw new Error('Set both ADMIN_EMAIL and ADMIN_PASSWORD in .env to create the administrator account.');
   }
-  if (password.length < 12 || Buffer.byteLength(password, 'utf8') > 72) {
-    throw new Error('ADMIN_PASSWORD must be at least 12 characters and no more than 72 UTF-8 bytes.');
+  if (Buffer.byteLength(password, 'utf8') > 72) {
+    throw new Error('ADMIN_PASSWORD must be no more than 72 UTF-8 bytes.');
   }
   if (await User.exists({ role: 'admin' })) return;
   if (await User.exists({ email })) {

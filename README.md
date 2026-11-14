@@ -39,7 +39,7 @@ Configure MongoDB and authentication before starting the API:
    node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
    ```
 
-4. To create the first administrator, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. Use a unique email and a private password of at least 12 characters. On the first API start, the administrator is created with a bcrypt-hashed password. Remove both bootstrap variables after the account is created; the account remains in MongoDB.
+4. To create the first administrator, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. Use a unique email and any non-empty password up to 72 UTF-8 bytes. On the first API start, the administrator is created with a bcrypt-hashed password. Remove both bootstrap variables after the account is created; the account remains in MongoDB.
 5. Never commit `.env` or share its values.
 
 Run the API and frontend in separate terminals:

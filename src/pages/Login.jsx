@@ -250,13 +250,11 @@ const Login = () => {
               type="password"
               autoComplete={isRegistering ? 'new-password' : 'current-password'}
               required
-              minLength={isRegistering ? 12 : undefined}
               maxLength={72}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white text-sm"
             />
-            {isRegistering && <p className="text-xs text-slate-500 mt-1">{t('authPasswordHint')}</p>}
           </div>
 
           <button

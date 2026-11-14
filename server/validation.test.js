@@ -49,11 +49,11 @@ test('coerces emergency age and rejects malformed enrollment data', () => {
   assert.equal(enrollmentCreateSchema.safeParse({ ...valid, emergencyAge: '' }).success, false);
 });
 
-test('requires a strong password, normalizes email, and strips client-supplied roles', () => {
+test('allows short non-empty passwords, normalizes email, and strips client-supplied roles', () => {
   const registration = registerSchema.safeParse({
     username: 'Player One',
     email: 'PLAYER@EXAMPLE.COM',
-    password: 'a-strong-password-123',
+    password: 'x',
     contactNumber: '9876543210',
     city: 'Mumbai',
     role: 'admin',
@@ -64,7 +64,14 @@ test('requires a strong password, normalizes email, and strips client-supplied r
   assert.equal(registerSchema.safeParse({
     username: 'Player One',
     email: 'player@example.com',
-    password: 'short',
+    password: '',
+    contactNumber: '9876543210',
+    city: 'Mumbai',
+  }).success, false);
+  assert.equal(registerSchema.safeParse({
+    username: 'Player One',
+    email: 'player@example.com',
+    password: 'x'.repeat(73),
     contactNumber: '9876543210',
     city: 'Mumbai',
   }).success, false);
