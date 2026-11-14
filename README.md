@@ -66,6 +66,16 @@ docker compose up --build
 
 Open `http://127.0.0.1:5173`. Compose runs the API and Vite frontend in separate containers, waits for the API health check, and uses the configured MongoDB database. Both published ports are limited to the local machine. Stop the containers with `Ctrl+C`; run `docker compose down` to remove them.
 
+If those ports are already in use, choose alternate host ports in PowerShell before starting Compose:
+
+```powershell
+$env:API_PUBLISHED_PORT = "5001"
+$env:WEB_PUBLISHED_PORT = "5174"
+docker compose up --build
+```
+
+Then open `http://127.0.0.1:5174`.
+
 ## API
 
 The Vite development server proxies `/api` requests to the local Express server.
