@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LanguageContext } from '../context/LanguageContext';
 import { AppContext } from '../context/AppContext';
@@ -26,14 +26,12 @@ const Navbar = () => {
   const navStyle = (scrolled || !isHome) ? { backgroundColor: '#003673' } : {};
   const textColor = 'text-white';
 
-  const NavLinks = () => (
-    <>
-      <Link to="/" className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">{t('home')}</Link>
-      <Link to="/play" className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">{t('play')}</Link>
-      <Link to="/ai-test" className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">{t('ai')}</Link>
-      <Link to="/contact" className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">{t('contact')}</Link>
-    </>
-  );
+  const navLinks = [
+    { to: '/', label: t('home') },
+    { to: '/play', label: t('play') },
+    { to: '/ai-test', label: t('ai') },
+    { to: '/contact', label: t('contact') },
+  ];
 
   return (
     <nav style={navStyle} className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${navBg} ${textColor}`}>
@@ -49,7 +47,11 @@ const Navbar = () => {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
-          <NavLinks />
+          {navLinks.map(({ to, label }) => (
+            <Link key={to} to={to} className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">
+              {label}
+            </Link>
+          ))}
         </div>
 
         {/* Right Actions */}
@@ -107,7 +109,11 @@ const Navbar = () => {
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full border-t border-white/10 shadow-xl" style={{ backgroundColor: '#003673' }}>
           <div className="flex flex-col p-4 space-y-4">
-            <NavLinks />
+            {navLinks.map(({ to, label }) => (
+              <Link key={to} to={to} className="font-semibold text-sm hover:text-[#D1AB3E] transition-colors uppercase tracking-wider">
+                {label}
+              </Link>
+            ))}
             <div className="h-px bg-white/10 w-full"></div>
             <div className="flex items-center gap-4">
               <button onClick={() => changeLanguage('en')} className={`text-sm font-bold cursor-pointer ${language === 'en' ? 'text-[#D1AB3E]' : 'text-white'}`}>EN</button>

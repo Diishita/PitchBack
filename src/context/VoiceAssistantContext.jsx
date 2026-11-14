@@ -1,7 +1,9 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LanguageContext } from './LanguageContext';
 
+// Fast Refresh intentionally shares this context object with its provider.
+// eslint-disable-next-line react-refresh/only-export-components
 export const VoiceAssistantContext = createContext();
 
 export const VoiceAssistantProvider = ({ children }) => {
@@ -10,103 +12,25 @@ export const VoiceAssistantProvider = ({ children }) => {
   const [lastIntent, setLastIntent] = useState(null);
   const [lastPayload, setLastPayload] = useState(null);
   const [error, setError] = useState(null);
+  const recognitionRef = useRef(null);
+  const recognitionActiveRef = useRef(false);
   const { language, t } = useContext(LanguageContext);
   const navigate = useNavigate();
   const location = useLocation();
-  let recognition = null;
+  const locationPathRef = useRef(location.pathname);
 
   useEffect(() => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      setError('Voice not supported');
-      return;
-    }
+    locationPathRef.current = location.pathname;
+  }, [location.pathname]);
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setLastTranscript(transcript);
-      console.debug('[VoiceAssistant] result:', transcript);
-      processCommand(transcript);
-    };
-
-    recognition.onerror = (ev) => {
-      console.error('[VoiceAssistant] recognition error', ev);
-      if (ev.error === 'no-speech') {
-        setError(t('voiceNoSpeech'));
-      } else if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-        setError(t('voicePermissionDenied'));
-      } else {
-        setError(t('voiceError'));
-      }
-      setIsListening(false);
-    };
-    recognition.onstart = () => {
-      console.debug('[VoiceAssistant] recognition started');
-      setError(null);
-    };
-
-    recognition.onaudiostart = () => {
-      console.debug('[VoiceAssistant] audio started');
-    };
-
-    recognition.onend = () => {
-      console.debug('[VoiceAssistant] recognition ended');
-      setIsListening(false);
-    };
-
-    // store on window for access in handlers
-    window.__voice_recognition = recognition;
-
-    return () => {
-      if (window.__voice_recognition) {
-        try { window.__voice_recognition.stop(); } catch (e) {}
-        delete window.__voice_recognition;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language]);
-
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      setError(t('voiceNotSupported'));
-      return;
-    }
-    try {
-      const r = window.__voice_recognition;
-      if (r) {
-        console.debug('[VoiceAssistant] startListening()');
-        r.start();
-        setIsListening(true);
-        setError(null);
-      }
-    } catch (e) {
-      console.error('[VoiceAssistant] start failed', e);
-      setError(t('voiceError'));
-    }
-  };
-
-  const stopListening = () => {
-    try {
-      const r = window.__voice_recognition;
-      if (r) r.stop();
-    } catch (e) {}
-    console.debug('[VoiceAssistant] stopListening()');
-    setIsListening(false);
-  };
-
-  const dispatchVoiceEvent = (intent, payload = null, transcript = '') => {
+  const dispatchVoiceEvent = useCallback((intent, payload = null, transcript = '') => {
     setLastIntent(intent);
     setLastPayload(payload);
     const ev = new CustomEvent('voice-command', { detail: { intent, payload, transcript } });
     window.dispatchEvent(ev);
-  };
+  }, []);
 
-  const applyDictationToFocusedField = (text) => {
+  const applyDictationToFocusedField = useCallback((text) => {
     const active = document.activeElement;
     if (!active) return false;
     const tag = active.tagName.toLowerCase();
@@ -122,9 +46,9 @@ export const VoiceAssistantProvider = ({ children }) => {
       return true;
     }
     return false;
-  };
+  }, []);
 
-  const processCommand = (raw) => {
+  const processCommand = useCallback((raw) => {
     const txt = (raw || '').toLowerCase().trim();
     const clean = txt.replace(/(please|pls|kindly)/g, '').trim();
 
@@ -139,7 +63,7 @@ export const VoiceAssistantProvider = ({ children }) => {
 
     if (enrollPattern.test(clean)) {
       dispatchVoiceEvent('enroll', null, raw);
-      if (location.pathname.startsWith('/play')) {
+      if (locationPathRef.current.startsWith('/play')) {
         dispatchVoiceEvent('enroll-on-play', null, raw);
       } else {
         navigate('/play');
@@ -195,7 +119,7 @@ export const VoiceAssistantProvider = ({ children }) => {
           console.debug('[VoiceAssistant] applied dictate to focused field', wrote, raw);
           return;
         }
-        if (location.pathname.startsWith('/play')) {
+        if (locationPathRef.current.startsWith('/play')) {
           dispatchVoiceEvent('search', wrote, raw);
           console.debug('[VoiceAssistant] parsed intent', 'search (from dictate)', wrote, raw);
           return;
@@ -214,7 +138,7 @@ export const VoiceAssistantProvider = ({ children }) => {
           console.debug('[VoiceAssistant] applied dictate fallback to focused field', wrote, raw);
           return;
         }
-        if (location.pathname.startsWith('/play')) {
+        if (locationPathRef.current.startsWith('/play')) {
           dispatchVoiceEvent('search', wrote, raw);
           console.debug('[VoiceAssistant] parsed intent', 'search fallback (from dictate)', wrote, raw);
           return;
@@ -230,7 +154,7 @@ export const VoiceAssistantProvider = ({ children }) => {
       const q = clean.replace(/(find|search|show|look for|for|for me|for the|खोज|शोध|सापड|के लिए|साठी|का|ची|ना|मे|match|matches|मैच|मॅच)/g, '').trim();
       const query = q || txt;
       dispatchVoiceEvent('search', query, raw);
-      if (!location.pathname.startsWith('/play')) {
+      if (!locationPathRef.current.startsWith('/play')) {
         navigate('/play');
         setTimeout(() => dispatchVoiceEvent('search', query, raw), 800);
       }
@@ -240,11 +164,107 @@ export const VoiceAssistantProvider = ({ children }) => {
 
     // fallback: treat anything as search
     dispatchVoiceEvent('search', clean || txt, raw);
-    if (!location.pathname.startsWith('/play')) {
+    if (!locationPathRef.current.startsWith('/play')) {
       navigate('/play');
       setTimeout(() => dispatchVoiceEvent('search', clean || txt, raw), 800);
     }
     console.debug('[VoiceAssistant] parsed intent', 'fallback search', clean || txt, raw);
+  }, [dispatchVoiceEvent, applyDictationToFocusedField, navigate]);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return undefined;
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setLastTranscript(transcript);
+      console.debug('[VoiceAssistant] result:', transcript);
+      processCommand(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('[VoiceAssistant] recognition error', event);
+      recognitionActiveRef.current = false;
+      if (event.error === 'no-speech') {
+        setError(t('voiceNoSpeech'));
+      } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setError(t('voicePermissionDenied'));
+      } else {
+        setError(t('voiceError'));
+      }
+      setIsListening(false);
+    };
+
+    recognition.onstart = () => {
+      recognitionActiveRef.current = true;
+      console.debug('[VoiceAssistant] recognition started');
+      setError(null);
+    };
+
+    recognition.onend = () => {
+      recognitionActiveRef.current = false;
+      console.debug('[VoiceAssistant] recognition ended');
+      setIsListening(false);
+    };
+
+    return () => {
+      if (recognitionActiveRef.current) {
+        try {
+          recognition.stop();
+        } catch (stopError) {
+          console.error('[VoiceAssistant] recognition cleanup failed', stopError);
+        }
+      }
+      recognitionActiveRef.current = false;
+      setIsListening(false);
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onstart = null;
+      recognition.onend = null;
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+    };
+  }, [language, processCommand, t]);
+
+  const startListening = () => {
+    const recognition = recognitionRef.current;
+    if (!recognition) {
+      setError(t('voiceNotSupported'));
+      return;
+    }
+
+    try {
+      recognition.start();
+      recognitionActiveRef.current = true;
+      setIsListening(true);
+      setError(null);
+    } catch (startError) {
+      recognitionActiveRef.current = false;
+      console.error('[VoiceAssistant] start failed', startError);
+      setError(t('voiceError'));
+    }
+  };
+
+  const stopListening = () => {
+    const recognition = recognitionRef.current;
+    if (!recognition) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      recognition.stop();
+      recognitionActiveRef.current = false;
+      setIsListening(false);
+    } catch (stopError) {
+      console.error('[VoiceAssistant] stop failed', stopError);
+      setError(t('voiceError'));
+    }
   };
 
   return (

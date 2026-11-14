@@ -1,19 +1,14 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
-import { Calendar, MapPin, Clock, LogOut, CheckCircle, ChevronRight, Sun, Moon, Trophy } from 'lucide-react';
+import { Calendar, MapPin, Clock, CheckCircle, ChevronRight, Trophy } from 'lucide-react';
 import Footer from '../components/Footer';
 
 const UserDashboard = () => {
-  const { currentUser, matches, enrollments, logoutUser, theme, toggleTheme } = useContext(AppContext);
+  const { currentUser, matches, enrollments } = useContext(AppContext);
   const { t, localizeDigits } = useContext(LanguageContext);
   const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logoutUser();
-    navigate('/');
-  };
 
   const userEnrollments = enrollments.filter(e => e.userId === currentUser?.id);
   const enrolledMatchIds = userEnrollments.map(e => e.matchId);

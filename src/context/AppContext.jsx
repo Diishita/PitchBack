@@ -1,5 +1,8 @@
-import React, { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect } from 'react';
+import { api } from '../services/api';
 
+// Fast Refresh intentionally shares this context object with its provider.
+// eslint-disable-next-line react-refresh/only-export-components
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
@@ -10,15 +13,10 @@ export const AppProvider = ({ children }) => {
     ];
   });
 
-  const [matches, setMatches] = useState(() => {
-    const saved = localStorage.getItem('cricket_matches');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [enrollments, setEnrollments] = useState(() => {
-    const saved = localStorage.getItem('cricket_enrollments');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [matches, setMatches] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState('');
 
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('cricket_currentUser');
@@ -36,6 +34,31 @@ export const AppProvider = ({ children }) => {
   });
 
   useEffect(() => {
+    const controller = new AbortController();
+    const loadData = async () => {
+      try {
+        const [loadedMatches, loadedEnrollments] = await Promise.all([
+          api.matches.list({ signal: controller.signal }),
+          api.enrollments.list({ signal: controller.signal }),
+        ]);
+        setMatches(loadedMatches);
+        setEnrollments(loadedEnrollments);
+        setDataError('');
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error('[App] Could not load application data', error);
+          setDataError(error.message);
+        }
+      } finally {
+        if (!controller.signal.aborted) setDataLoading(false);
+      }
+    };
+
+    loadData();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -46,8 +69,6 @@ export const AppProvider = ({ children }) => {
   }, [theme]);
 
   useEffect(() => localStorage.setItem('cricket_users', JSON.stringify(users)), [users]);
-  useEffect(() => localStorage.setItem('cricket_matches', JSON.stringify(matches)), [matches]);
-  useEffect(() => localStorage.setItem('cricket_enrollments', JSON.stringify(enrollments)), [enrollments]);
   useEffect(() => localStorage.setItem('cricket_recentLogins', JSON.stringify(recentLogins)), [recentLogins]);
   
   useEffect(() => {
@@ -107,28 +128,39 @@ export const AppProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
-  const addMatch = (match) => {
-    const newMatch = { ...match, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    setMatches([...matches, newMatch]);
+  const addMatch = async (match) => {
+    const newMatch = await api.matches.create(match);
+    setMatches(currentMatches => [...currentMatches, newMatch]);
+    setDataError('');
+    return newMatch;
   };
 
-  const updateMatch = (matchId, updatedMatch) => {
-    setMatches(matches.map(m => m.id === matchId ? { ...m, ...updatedMatch } : m));
+  const updateMatch = async (matchId, updatedMatch) => {
+    const savedMatch = await api.matches.update(matchId, updatedMatch);
+    setMatches(currentMatches => currentMatches.map(match => (
+      match.id === matchId ? savedMatch : match
+    )));
+    setDataError('');
+    return savedMatch;
   };
 
-  const addEnrollment = (enrollment) => {
-    const newEnrollment = { ...enrollment, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    setEnrollments([...enrollments, newEnrollment]);
+  const addEnrollment = async (enrollment) => {
+    const newEnrollment = await api.enrollments.create(enrollment);
+    setEnrollments(currentEnrollments => [newEnrollment, ...currentEnrollments]);
+    setDataError('');
+    return newEnrollment;
   };
 
-  const deleteUser = (userId) => {
-    setUsers(users.filter(u => u.id !== userId));
-    setEnrollments(enrollments.filter(e => e.userId !== userId));
+  const deleteUser = async (userId) => {
+    await api.enrollments.removeForUser(userId);
+    setUsers(currentUsers => currentUsers.filter(user => user.id !== userId));
+    setEnrollments(currentEnrollments => currentEnrollments.filter(enrollment => enrollment.userId !== userId));
   };
 
-  const deleteMatch = (matchId) => {
-    setMatches(matches.filter(m => m.id !== matchId));
-    setEnrollments(enrollments.filter(e => e.matchId !== matchId));
+  const deleteMatch = async (matchId) => {
+    await api.matches.remove(matchId);
+    setMatches(currentMatches => currentMatches.filter(match => match.id !== matchId));
+    setEnrollments(currentEnrollments => currentEnrollments.filter(enrollment => enrollment.matchId !== matchId));
   };
 
   const toggleBlockUser = (userId) => {
@@ -139,7 +171,7 @@ export const AppProvider = ({ children }) => {
 
   return (
     <AppContext.Provider value={{
-      users, matches, enrollments, currentUser, theme, recentLogins,
+      users, matches, enrollments, currentUser, theme, recentLogins, dataLoading, dataError,
       loginUser, logoutUser, addMatch, deleteMatch, updateMatch, addEnrollment, deleteUser,
       toggleBlockUser, toggleTheme, removeRecentLogin
     }}>

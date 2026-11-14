@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import { LanguageContext } from '../context/LanguageContext';
 import { MessageCircle, Phone, Mail, Send, MapPin } from 'lucide-react';
 import Footer from '../components/Footer';

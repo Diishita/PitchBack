@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppContext } from './context/AppContext';
 import Navbar from './components/Navbar';
@@ -26,10 +26,22 @@ const ProtectedRoute = ({ children, role }) => {
 };
 
 function App() {
+  const { dataLoading, dataError } = useContext(AppContext);
+
   return (
     <VoiceAssistantProvider>
     <div className="min-h-screen w-full bg-gradient-to-br from-sky-50 via-blue-50 to-amber-50 dark:from-[#001a3d] dark:via-[#002a5e] dark:to-[#001530] text-slate-900 dark:text-blue-50 font-sans transition-all duration-500">
       <Navbar />
+      {dataLoading && (
+        <div role="status" className="fixed top-24 left-1/2 z-40 -translate-x-1/2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-lg">
+          Loading matches and enrollments...
+        </div>
+      )}
+      {dataError && (
+        <div role="alert" className="fixed top-24 left-1/2 z-40 w-[min(90%,40rem)] -translate-x-1/2 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-800 shadow-lg">
+          Could not load project data: {dataError}. Start the API server and check its MongoDB connection.
+        </div>
+      )}
       <ScrollToTop />
       <VoiceAssistantButton />
       <Routes>

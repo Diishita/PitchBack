@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo } from 'react';
+import { useState, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
@@ -20,21 +20,50 @@ const AdminDashboard = () => {
   const [editingMatch, setEditingMatch] = useState(null);
   const [viewingPlayersFor, setViewingPlayersFor] = useState(null);
   const [viewingEnrollment, setViewingEnrollment] = useState(null);
+  const [actionError, setActionError] = useState('');
 
   const handleLogout = () => { logoutUser(); navigate('/'); };
 
-  const handleAddMatch = (e) => {
+  const handleAddMatch = async (e) => {
     e.preventDefault();
     if (!newMatch.title || !newMatch.date || !newMatch.time || !newMatch.place) return;
-    addMatch({ ...newMatch });
-    setNewMatch({ title: '', date: '', time: '', place: '' });
+    setActionError('');
+    try {
+      await addMatch({ ...newMatch });
+      setNewMatch({ title: '', date: '', time: '', place: '' });
+    } catch (error) {
+      setActionError(error.message);
+    }
   };
 
-  const handleUpdateMatch = (e) => {
+  const handleUpdateMatch = async (e) => {
     e.preventDefault();
     if (!editingMatch.title || !editingMatch.date || !editingMatch.time || !editingMatch.place) return;
-    updateMatch(editingMatch.id, { ...editingMatch });
-    setEditingMatch(null);
+    setActionError('');
+    try {
+      await updateMatch(editingMatch.id, { ...editingMatch });
+      setEditingMatch(null);
+    } catch (error) {
+      setActionError(error.message);
+    }
+  };
+
+  const handleDeleteMatch = async (matchId) => {
+    setActionError('');
+    try {
+      await deleteMatch(matchId);
+    } catch (error) {
+      setActionError(error.message);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    setActionError('');
+    try {
+      await deleteUser(userId);
+    } catch (error) {
+      setActionError(error.message);
+    }
   };
 
   const cityStats = useMemo(() => {
@@ -141,6 +170,11 @@ const AdminDashboard = () => {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6 md:p-10">
+          {actionError && (
+            <p role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {actionError}
+            </p>
+          )}
 
           {/* ── Matches Tab ── */}
           {activeTab === 'matches' && (
@@ -248,7 +282,7 @@ const AdminDashboard = () => {
                               <button
                                 onClick={() => {
                                   if (window.confirm(t('delete') + "?")) {
-                                    deleteMatch(m.id);
+                                    handleDeleteMatch(m.id);
                                   }
                                 }}
                                 className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
@@ -276,7 +310,7 @@ const AdminDashboard = () => {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className={`border-b ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50/60'}`}>
-                      {[t('playerNameLabel'), t('matchesTab'), t('contact'), t('emergencyInfo'), t('medicalInfoLabel')].map(h => (
+                      {[t('playerNameLabel'), t('matchesTab'), t('contactLabel'), t('emergencyInfo'), t('medicalInfoLabel')].map(h => (
                         <th key={h} className="p-5 text-xs font-bold uppercase tracking-wider text-slate-400">{h}</th>
                       ))}
                     </tr>
@@ -345,7 +379,7 @@ const AdminDashboard = () => {
                         {u.isBlocked ? <><ShieldCheck className="w-3.5 h-3.5" /> {t('unblock')}</> : <><ShieldBan className="w-3.5 h-3.5" /> {t('block')}</>}
                       </button>
                       <button
-                        onClick={() => deleteUser(u.id)}
+                        onClick={() => handleDeleteUser(u.id)}
                         className="px-3 py-2 text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> {t('delete')}

@@ -1,6 +1,8 @@
-import React, { createContext, useState } from 'react';
+import { createContext, useState } from 'react';
 import { translations } from '../translations';
 
+// Fast Refresh intentionally shares this context object with its provider.
+// eslint-disable-next-line react-refresh/only-export-components
 export const LanguageContext = createContext();
 
 export const LanguageProvider = ({ children }) => {

@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import { useState, useContext, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
@@ -22,6 +22,7 @@ const Login = () => {
   const [speechError, setSpeechError] = useState('');
   const dropdownRef = useRef(null);
   const recognitionRef = useRef(null);
+  const recognitionActiveRef = useRef(false);
 
   const { loginUser, currentUser, recentLogins, removeRecentLogin } = useContext(AppContext);
   const { t, localizeDigits, language } = useContext(LanguageContext);
@@ -44,13 +45,31 @@ const Login = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      setSpeechError('Voice commands are not supported in this browser.');
-      return;
-    }
+  const parseVoiceCommand = useCallback((transcript) => {
+    const normalized = transcript.toLowerCase();
 
+    const usernameMatch = normalized.match(/(name is|naam hai|माझं नाव|माझं नाव आहे|mi naav)\s+([\w\s]+)/i);
+    const cityMatch = normalized.match(/(city|sheher|शहर|नगर|city is|city name is|city ka naam|शहर|नगर)\s*[: ]*([\w\s]+)/i);
+    const phoneMatch = normalized.match(/(phone|number|mobile|मोबाइल|नंबर|फोन)\s*[: ]*([0-9]+)/i);
+
+    if (usernameMatch) setUsername(usernameMatch[2].trim());
+    if (cityMatch) setCity(cityMatch[2].trim());
+    if (phoneMatch) setContactNumber(phoneMatch[2].trim());
+
+    if (normalized.includes('register') || normalized.includes('sign up') || normalized.includes('register me') || normalized.includes('मुझे रजिस्टर करें') || normalized.includes('मला नोंदवा')) {
+      const submittedUsername = usernameMatch ? usernameMatch[2].trim() : username;
+      const submittedCity = cityMatch ? cityMatch[2].trim() : city;
+      const submittedContactNumber = phoneMatch ? phoneMatch[2].trim() : contactNumber;
+      if (submittedUsername && submittedContactNumber && submittedCity) {
+        loginUser(submittedUsername, submittedContactNumber, submittedCity);
+      }
+    }
+  }, [city, contactNumber, loginUser, username]);
+
+  useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return undefined;
+
     const recognition = new SpeechRecognition();
     recognition.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-US';
     recognition.interimResults = false;
@@ -63,48 +82,61 @@ const Login = () => {
       setIsListening(false);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = () => {
+      recognitionActiveRef.current = false;
       setSpeechError('Voice recognition failed. Please try again.');
       setIsListening(false);
     };
 
+    recognition.onstart = () => {
+      recognitionActiveRef.current = true;
+    };
+
     recognition.onend = () => {
+      recognitionActiveRef.current = false;
       setIsListening(false);
     };
 
     recognitionRef.current = recognition;
-  }, [language]);
-
-  const parseVoiceCommand = (transcript) => {
-    const normalized = transcript.toLowerCase();
-
-    const usernameMatch = normalized.match(/(name is|naam hai|माझं नाव|माझं नाव आहे|mi naav)\s+([\w\s]+)/i);
-    const cityMatch = normalized.match(/(city|sheher|शहर|नगर|city is|city name is|city ka naam|शहर|नगर)\s*[: ]*([\w\s]+)/i);
-    const phoneMatch = normalized.match(/(phone|number|mobile|मोबाइल|नंबर|फोन)\s*[: ]*([0-9]+)/i);
-
-    if (usernameMatch) setUsername(usernameMatch[2].trim());
-    if (cityMatch) setCity(cityMatch[2].trim());
-    if (phoneMatch) setContactNumber(phoneMatch[2].trim());
-
-    if (normalized.includes('register') || normalized.includes('sign up') || normalized.includes('register me') || normalized.includes('मुझे रजिस्टर करें') || normalized.includes('मला नोंदवा')) {
-      if (username && contactNumber && city) {
-        loginUser(username, contactNumber, city);
+    return () => {
+      if (recognitionActiveRef.current) {
+        try {
+          recognition.stop();
+        } catch (stopError) {
+          console.error('Login voice recognition cleanup failed', stopError);
+        }
       }
-    }
-  };
+      recognitionActiveRef.current = false;
+      setIsListening(false);
+      recognitionRef.current = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onstart = null;
+      recognition.onend = null;
+    };
+  }, [language, parseVoiceCommand]);
 
   const handleVoiceToggle = () => {
-    if (!recognitionRef.current) return;
+    if (!recognitionRef.current) {
+      setSpeechError('Voice commands are not supported in this browser.');
+      return;
+    }
     setSpeechError('');
-    setIsListening((prev) => {
-      const next = !prev;
-      if (next) {
-        recognitionRef.current.start();
-      } else {
+    try {
+      if (isListening) {
         recognitionRef.current.stop();
+        recognitionActiveRef.current = false;
+      } else {
+        recognitionRef.current.start();
+        recognitionActiveRef.current = true;
       }
-      return next;
-    });
+      setIsListening(!isListening);
+    } catch (recognitionError) {
+      recognitionActiveRef.current = false;
+      console.error('Login voice recognition failed', recognitionError);
+      setSpeechError('Voice recognition failed. Please try again.');
+      setIsListening(false);
+    }
   };
 
   const handleSubmit = (e) => {

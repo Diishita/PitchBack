@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
@@ -9,6 +9,7 @@ const EnrollmentForm = () => {
   const navigate = useNavigate();
   const { matches, currentUser, addEnrollment, theme, toggleTheme } = useContext(AppContext);
   const { t, localizeDigits } = useContext(LanguageContext);
+  const [submitError, setSubmitError] = useState('');
 
   const match = matches.find(m => m.id === matchId);
 
@@ -29,14 +30,19 @@ const EnrollmentForm = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    addEnrollment({
-      matchId,
-      userId: currentUser.id,
-      ...formData
-    });
-    navigate('/dashboard');
+    setSubmitError('');
+    try {
+      await addEnrollment({
+        matchId,
+        userId: currentUser.id,
+        ...formData
+      });
+      navigate('/dashboard');
+    } catch (error) {
+      setSubmitError(error.message);
+    }
   };
 
   if (!match) {
@@ -70,6 +76,11 @@ const EnrollmentForm = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
+            {submitError && (
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {submitError}
+              </p>
+            )}
             <section>
               <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                 <span className="w-6 h-6 rounded bg-blue-50 dark:bg-blue-900/30 text-[#004BA0] dark:text-blue-400 flex items-center justify-center text-xs font-bold">{localizeDigits(1)}</span>

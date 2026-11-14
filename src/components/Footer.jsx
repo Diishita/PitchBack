@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { CircleDot, MapPin, Phone, Mail } from 'lucide-react';
 import { LanguageContext } from '../context/LanguageContext';
 

@@ -1,47 +1,41 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import { useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
-import { CalendarDays, MapPin, Clock, Trophy, Users, Mic, X, Brain, ChevronRight } from 'lucide-react';
+import { CalendarDays, MapPin, Clock, Trophy, Users, Mic, Brain } from 'lucide-react';
 import Footer from '../components/Footer';
+import { filterMatches, normalizeVoiceSearchCommand } from '../utils/matchSearch';
 
 const PlayPage = () => {
   const { matches, enrollments, currentUser } = useContext(AppContext);
   const { t, localizeDigits, language } = useContext(LanguageContext);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredMatches, setFilteredMatches] = useState(matches);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState('');
   const recognitionRef = useRef(null);
+  const recognitionActiveRef = useRef(false);
+  const filteredMatches = useMemo(() => filterMatches(matches, searchQuery), [matches, searchQuery]);
 
   const handleEnrollClick = (matchId) => {
     navigate(`/enroll/${matchId}`);
   };
 
-  useEffect(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) {
-      setFilteredMatches(matches);
-      return;
+  const handleVoiceSearch = useCallback((transcript) => {
+    const query = normalizeVoiceSearchCommand(transcript);
+    if (query) {
+      setSearchQuery(query);
+      setSpeechError('');
+    } else {
+      setSpeechError('Please say a match type, location or format to search.');
     }
-
-    setFilteredMatches(
-      matches.filter((m) =>
-        m.title.toLowerCase().includes(normalizedQuery) ||
-        m.place.toLowerCase().includes(normalizedQuery)
-      )
-    );
-  }, [matches, searchQuery]);
+  }, []);
 
   useEffect(() => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      setSpeechError('Voice commands are not supported in this browser.');
-      return;
-    }
-
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return undefined;
+
     const recognition = new SpeechRecognition();
     recognition.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-US';
     recognition.interimResults = false;
@@ -55,39 +49,55 @@ const PlayPage = () => {
     };
 
     recognition.onerror = () => {
+      recognitionActiveRef.current = false;
       setSpeechError('Voice recognition failed. Please try again.');
       setIsListening(false);
     };
 
+    recognition.onstart = () => {
+      recognitionActiveRef.current = true;
+    };
+
     recognition.onend = () => {
+      recognitionActiveRef.current = false;
       setIsListening(false);
     };
 
     recognitionRef.current = recognition;
-  }, [language]);
+    return () => {
+      if (recognitionActiveRef.current) {
+        try {
+          recognition.stop();
+        } catch (stopError) {
+          console.error('Match search voice recognition cleanup failed', stopError);
+        }
+      }
+      recognitionActiveRef.current = false;
+      setIsListening(false);
+      recognitionRef.current = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onstart = null;
+      recognition.onend = null;
+    };
+  }, [language, handleVoiceSearch]);
 
   // Global voice-command event listener
   useEffect(() => {
     const handler = (e) => {
-      const { intent, payload, transcript } = e.detail || {};
+      const { intent, payload } = e.detail || {};
       if (intent === 'search') {
         if (payload) setSearchQuery(payload);
       }
       if (intent === 'dictate') {
         if (payload) setSearchQuery(payload);
       }
-      if (intent === 'open' && payload === '/ai-test') {
-        // nothing special needed here
-      }
       if (intent === 'enroll' || intent === 'enroll-on-play') {
-        if (filteredMatches && filteredMatches.length > 0) {
-          navigate(`/enroll/${filteredMatches[0].id}`);
-        } else if (payload) {
-          setSearchQuery(payload);
-          setTimeout(() => {
-            if (filteredMatches && filteredMatches.length > 0) navigate(`/enroll/${filteredMatches[0].id}`);
-          }, 700);
+        const voiceMatches = payload ? filterMatches(matches, payload) : filteredMatches;
+        if (voiceMatches.length > 0) {
+          navigate(`/enroll/${voiceMatches[0].id}`);
         } else {
+          if (payload) setSearchQuery(payload);
           setSpeechError(t('voiceHelpHint'));
         }
       }
@@ -95,38 +105,29 @@ const PlayPage = () => {
 
     window.addEventListener('voice-command', handler);
     return () => window.removeEventListener('voice-command', handler);
-  }, [filteredMatches, navigate, t]);
-
-  const normalizeCommand = (text) => {
-    return text
-      .toLowerCase()
-      .replace(/(find|search|show|matches?|match|खोज|शोध|सापडवा|सापडवा|शोधा|मॅच|मैच)/g, '')
-      .replace(/(for|for me|for the|के लिए|साठी|का|ची|ना|मे)/g, '')
-      .trim();
-  };
-
-  const handleVoiceSearch = (transcript) => {
-    const query = normalizeCommand(transcript);
-    if (query) {
-      setSearchQuery(query);
-      setSpeechError('');
-    } else {
-      setSpeechError('Please say a match type, location or format to search.');
-    }
-  };
+  }, [filteredMatches, matches, navigate, t]);
 
   const handleVoiceToggle = () => {
-    if (!recognitionRef.current) return;
+    if (!recognitionRef.current) {
+      setSpeechError('Voice commands are not supported in this browser.');
+      return;
+    }
     setSpeechError('');
-    setIsListening((prev) => {
-      const next = !prev;
-      if (next) {
-        recognitionRef.current.start();
-      } else {
+    try {
+      if (isListening) {
         recognitionRef.current.stop();
+        recognitionActiveRef.current = false;
+      } else {
+        recognitionRef.current.start();
+        recognitionActiveRef.current = true;
       }
-      return next;
-    });
+      setIsListening(!isListening);
+    } catch (recognitionError) {
+      recognitionActiveRef.current = false;
+      console.error('Match search voice recognition failed', recognitionError);
+      setSpeechError('Voice recognition failed. Please try again.');
+      setIsListening(false);
+    }
   };
 
   return (

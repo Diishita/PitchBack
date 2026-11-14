@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { VoiceAssistantContext } from '../context/VoiceAssistantContext';
 import { LanguageContext } from '../context/LanguageContext';
 import { Mic } from 'lucide-react';
@@ -18,6 +18,7 @@ export default function VoiceAssistantButton(){
         <div className="font-semibold">{isListening ? (t('listening') || 'Listening') : (t('startVoiceHelp') || 'Start voice help')}</div>
         {lastTranscript && <div className="mt-1 text-slate-600 dark:text-slate-400">"{lastTranscript}"</div>}
         {lastIntent && <div className="mt-1 text-slate-700 dark:text-slate-300">Intent: {lastIntent}</div>}
+        {lastPayload && <div className="mt-1 text-slate-600 dark:text-slate-400">Details: {lastPayload}</div>}
         {error && (
           <div className="mt-1 text-rose-700 dark:text-rose-300">
             {error}
