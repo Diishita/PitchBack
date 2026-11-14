@@ -39,10 +39,10 @@ const suggestionRateLimit = rateLimit({
   },
 });
 
-export const createApp = ({ sessionStore } = {}) => {
+export const createApp = ({ sessionStore, allowedOrigins: configuredOrigins } = {}) => {
   const app = express();
   const isProduction = process.env.NODE_ENV === 'production';
-  const allowedOrigins = (process.env.FRONTEND_ORIGINS || '')
+  const allowedOrigins = configuredOrigins ?? (process.env.FRONTEND_ORIGINS || '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

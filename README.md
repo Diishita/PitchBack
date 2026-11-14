@@ -110,23 +110,20 @@ Suggestions are stored in MongoDB with a new/reviewed status and can only be vie
 
 **Use fictional test data for the project demo.** Enrollment records include emergency and medical information. The local Compose ports are bound to `127.0.0.1`; a hosted deployment must use HTTPS and private environment variables.
 
-## Deploy for a project demo
+## Deploy on Vercel
 
-The local Compose stack is for the Docker/container checklist and local demos. For a live Vercel URL, deploy the Vite frontend to Vercel and the API as a Docker web service on a persistent Node host such as Render. The API and Socket.IO need to be reachable from the browser; this repository's `Dockerfile.api` is the production API image, separate from the local development `Dockerfile`.
+The Vercel deployment serves the Vite frontend, REST API, and Socket.IO endpoint from the same project. The API uses a Vercel Function, while Socket.IO uses Vercel Functions' WebSocket support. A MongoDB Socket.IO adapter shares change events between function instances using the existing Atlas replica set.
 
-1. Import this GitHub repository into Vercel as a Vite project. Use the repository root, build command `npm run build`, and output directory `dist`. Vercel rewrites app routes to `index.html` so direct links such as `/login` work.
-2. Deploy a Render **Web Service** from the same repository using Dockerfile path `./Dockerfile.api` and repository root as the build context. Set:
-   - `NODE_ENV=production`
+1. Import this repository into Vercel as a Vite project. Use the repository root, build command `npm run build`, and output directory `dist`.
+2. Set these server-side environment variables in Vercel for the Production environment:
    - `MONGODB_URI` to the private Atlas connection string
    - `SESSION_SECRET` to a newly generated random value of at least 32 bytes
-   - `FRONTEND_ORIGINS` to the exact Vercel URL, including `https://` and without a trailing slash
+   - `FRONTEND_ORIGINS` to the exact production URL, including `https://` and without a trailing slash
    - `GEMINI_API_KEY` if Gemini recommendations should be enabled
 
-   Render supplies `PORT`; the container binds to `0.0.0.0`. Use `/api/health` as the health-check path. Do not add secrets to GitHub or Vercel frontend variables.
-3. Copy the Render service's HTTPS origin into Vercel's `VITE_API_URL` environment variable (for example `https://pitchback-api.onrender.com`, without `/api`), then redeploy the Vercel project. Keep the Gemini key only on the API host, named `GEMINI_API_KEY` (not `VITE_GEMINI_API_KEY`).
-4. Test signup/login, match loading, an admin action, enrollment access, the `/api/health` endpoint, and the Socket.IO connection on the live URLs. Some browsers restrict cross-site cookies; if session login does not persist, use a custom domain arrangement that puts the frontend and API on the same site.
-
-Vercel's WebSocket support is currently in public beta and has function-duration limits. This project uses a persistent Docker API service for its live Socket.IO server; its client reconnects and reloads data after reconnecting.
+   Do not prefix secrets with `VITE_`, and do not commit them. Leave `VITE_API_URL` unset so the frontend uses same-origin API routes.
+3. Configure Atlas Network Access for Vercel's outbound traffic. The current-IP entry for a developer laptop does not permit Vercel Functions to connect. Vercel Static IPs are available on Pro and Enterprise plans; add those egress addresses to Atlas. Avoid `0.0.0.0/0`, which allows connections from any IP.
+4. Redeploy after setting environment variables. Verify `/api/health`, signup/login, match loading, admin actions, enrollment access, and the Socket.IO connection. Vercel WebSocket connections are duration-limited; the client reconnects and reloads application data when a connection is restored.
 
 ## Checks
 

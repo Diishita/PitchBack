@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import { API_BASE_URL, api } from '../services/api';
+import { API_BASE_URL, SOCKET_PATH, api } from '../services/api';
 
 const fetchAppData = async () => {
   const [user, matches] = await Promise.all([
@@ -100,6 +100,7 @@ export const AppProvider = ({ children }) => {
     if (dataLoading) return undefined;
 
     const socket = io(API_BASE_URL || undefined, {
+      path: SOCKET_PATH,
       transports: ['websocket'],
       withCredentials: true,
     });

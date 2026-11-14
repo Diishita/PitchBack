@@ -1,5 +1,8 @@
 export const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 const API_BASE = `${API_BASE_URL}/api`;
+export const SOCKET_PATH = import.meta.env.PROD && !API_BASE_URL
+  ? '/api/socket-io/socket.io'
+  : '/socket.io';
 
 const request = async (path, { method = 'GET', body, signal } = {}) => {
   const response = await fetch(`${API_BASE}${path}`, {

@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { User } from './models/User.js';
 
-export const attachRealtime = (httpServer, sessionMiddleware, allowedOrigins = []) => {
+export const attachRealtime = (httpServer, sessionMiddleware, allowedOrigins = [], adapter) => {
   const io = new Server(httpServer, {
     ...(allowedOrigins.length ? {
       cors: {
@@ -14,6 +14,7 @@ export const attachRealtime = (httpServer, sessionMiddleware, allowedOrigins = [
       },
     } : {}),
   });
+  if (adapter) io.adapter(adapter);
   io.engine.use(sessionMiddleware);
   io.use(async (socket, next) => {
     const userId = socket.request.session?.userId;
@@ -42,6 +43,12 @@ export const attachRealtime = (httpServer, sessionMiddleware, allowedOrigins = [
     if (socket.data.user.role === 'admin') socket.join('admins');
   });
 
+  return io;
+};
+
+export const createRealtimePublisher = (adapter) => {
+  const io = new Server();
+  io.adapter(adapter);
   return io;
 };
 
