@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { LanguageContext } from '../context/LanguageContext';
 import { AppContext } from '../context/AppContext';
 import { Globe, User, LogOut, Menu, X, CircleDot, Sun, Moon } from 'lucide-react';
+import NotificationsMenu from './NotificationsMenu';
 
 const Navbar = () => {
   const { language, changeLanguage, t } = useContext(LanguageContext);
@@ -85,6 +86,7 @@ const Navbar = () => {
           {/* Auth */}
           {currentUser ? (
             <div className="flex items-center gap-5">
+              <NotificationsMenu />
               <Link to={currentUser.role === 'admin' ? '/admin' : '/dashboard'} className="flex items-center gap-2 text-sm font-bold text-[#D1AB3E] hover:text-yellow-300 transition-colors">
                 <User className="w-4 h-4" /> {t('dashboard')}
               </Link>
@@ -128,9 +130,15 @@ const Navbar = () => {
               </button>
             </div>
             {currentUser ? (
-              <button onClick={logoutUser} className="text-left font-semibold text-sm text-red-400 uppercase tracking-wider flex items-center gap-2 cursor-pointer">
-                <LogOut className="w-4 h-4" /> {t('logout')}
-              </button>
+              <>
+                <NotificationsMenu />
+                <Link to={currentUser.role === 'admin' ? '/admin' : '/dashboard'} className="text-left font-semibold text-sm text-[#D1AB3E] uppercase tracking-wider">
+                  <User className="mr-2 inline h-4 w-4" /> {t('dashboard')}
+                </Link>
+                <button onClick={logoutUser} className="text-left font-semibold text-sm text-red-400 uppercase tracking-wider flex items-center gap-2 cursor-pointer">
+                  <LogOut className="w-4 h-4" /> {t('logout')}
+                </button>
+              </>
             ) : (
               <Link to="/login" className="font-semibold text-sm text-[#D1AB3E] uppercase tracking-wider">{t('loginSignup')}</Link>
             )}

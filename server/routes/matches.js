@@ -6,6 +6,7 @@ import { matchCreateSchema, matchUpdateSchema } from '../validation.js';
 import { validateBody } from '../middleware/validateBody.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { notifyEnrollmentsChanged, notifyMatchesChanged } from '../realtime.js';
+import { notifyAllUsers } from '../notifications.js';
 
 const router = Router();
 
@@ -31,6 +32,11 @@ router.get('/', asyncHandler(async (_req, res) => {
 router.post('/', requireAuth, requireAdmin, validateBody(matchCreateSchema), asyncHandler(async (req, res) => {
   const match = await Match.create(req.validatedBody);
   notifyMatchesChanged(req.app.get('io'));
+  await notifyAllUsers(req.app.get('io'), {
+    type: 'match',
+    title: 'New match added',
+    message: `A new match, "${match.title}", is now available.`,
+  });
   res.status(201).json({ data: toMatchDto(match) });
 }));
 
@@ -73,6 +79,11 @@ router.patch('/:id', requireAuth, requireAdmin, validateBody(matchUpdateSchema),
   }
 
   notifyMatchesChanged(req.app.get('io'));
+  await notifyAllUsers(req.app.get('io'), {
+    type: 'match',
+    title: 'Match updated',
+    message: `The match "${match.title}" has been updated.`,
+  });
   return res.json({ data: toMatchDto(match) });
 }));
 
@@ -95,6 +106,11 @@ router.delete('/:id', requireAuth, requireAdmin, asyncHandler(async (req, res, n
   await Enrollment.deleteMany({ matchId: match._id });
   notifyMatchesChanged(req.app.get('io'));
   notifyEnrollmentsChanged(req.app.get('io'));
+  await notifyAllUsers(req.app.get('io'), {
+    type: 'match',
+    title: 'Match cancelled',
+    message: `The match "${match.title}" was cancelled.`,
+  });
   return res.json({ data: { id: match._id.toString(), deleted: true } });
 }));
 

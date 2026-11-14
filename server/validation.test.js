@@ -8,6 +8,8 @@ import {
   matchRecommendationSchema,
   matchUpdateSchema,
   registerSchema,
+  suggestionCreateSchema,
+  suggestionStatusSchema,
 } from './validation.js';
 
 test('accepts a valid match and trims its text fields', () => {
@@ -60,17 +62,6 @@ test('allows short non-empty passwords, normalizes email, and strips client-supp
     city: 'Mumbai',
     role: 'admin',
   });
-
-  test('validates AI inputs and trims user-provided text', () => {
-    assert.deepEqual(matchRecommendationSchema.parse({ userProfile: '  Former player  ' }), {
-      userProfile: 'Former player',
-    });
-    assert.equal(matchRecommendationSchema.safeParse({ userProfile: ' ' }).success, false);
-    assert.equal(fitnessAdviceSchema.safeParse({
-      matchFormat: 'Walking Cricket',
-      physicalConstraints: 'x'.repeat(2001),
-    }).success, false);
-  });
   assert.equal(registration.success, true);
   assert.equal(registration.data.email, 'player@example.com');
   assert.equal('role' in registration.data, false);
@@ -89,4 +80,30 @@ test('allows short non-empty passwords, normalizes email, and strips client-supp
     city: 'Mumbai',
   }).success, false);
   assert.equal(loginSchema.safeParse({ email: 'not-an-email', password: 'whatever' }).success, false);
+});
+
+test('validates AI inputs and trims user-provided text', () => {
+  assert.deepEqual(matchRecommendationSchema.parse({ userProfile: '  Former player  ' }), {
+    userProfile: 'Former player',
+  });
+  assert.equal(matchRecommendationSchema.safeParse({ userProfile: ' ' }).success, false);
+  assert.equal(fitnessAdviceSchema.safeParse({
+    matchFormat: 'Walking Cricket',
+    physicalConstraints: 'x'.repeat(2001),
+  }).success, false);
+});
+
+test('trims and bounds public suggestions and validates review status', () => {
+  assert.deepEqual(suggestionCreateSchema.parse({
+    name: '  Cricket fan  ',
+    message: '  Please add a weekend match.  ',
+  }), {
+    name: 'Cricket fan',
+    message: 'Please add a weekend match.',
+  });
+  assert.equal(suggestionCreateSchema.safeParse({
+    name: 'A',
+    message: 'Hi',
+  }).success, false);
+  assert.equal(suggestionStatusSchema.safeParse({ status: 'approved' }).success, false);
 });

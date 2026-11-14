@@ -6,6 +6,7 @@ import { toUserDto } from '../middleware/auth.js';
 import { loginSchema, registerSchema } from '../validation.js';
 import { validateBody } from '../middleware/validateBody.js';
 import { notifyUsersChanged } from '../realtime.js';
+import { notifyAdmins, notifyRecipient } from '../notifications.js';
 
 const router = Router();
 
@@ -43,6 +44,18 @@ router.post('/register', validateBody(registerSchema), asyncHandler(async (req, 
 
   await startSession(req, user);
   notifyUsersChanged(req.app.get('io'));
+  await Promise.all([
+    notifyRecipient(req.app.get('io'), user._id, {
+      type: 'account',
+      title: 'Welcome to PitchBack',
+      message: 'Your account is ready. Explore matches and join the community.',
+    }),
+    notifyAdmins(req.app.get('io'), {
+      type: 'account',
+      title: 'New account created',
+      message: 'A new player account has been created.',
+    }),
+  ]);
   return res.status(201).json({ data: toUserDto(user) });
 }));
 

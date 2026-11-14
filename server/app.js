@@ -10,6 +10,8 @@ import matchRoutes from './routes/matches.js';
 import enrollmentRoutes from './routes/enrollments.js';
 import userRoutes from './routes/users.js';
 import aiRoutes from './routes/ai.js';
+import notificationRoutes from './routes/notifications.js';
+import suggestionRoutes from './routes/suggestions.js';
 
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -20,6 +22,19 @@ const authRateLimit = rateLimit({
     error: {
       code: 'AUTH_RATE_LIMITED',
       message: 'Too many authentication attempts. Try again later.',
+    },
+  },
+});
+
+const suggestionRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: {
+      code: 'SUGGESTION_RATE_LIMITED',
+      message: 'Too many suggestions submitted. Try again later.',
     },
   },
 });
@@ -85,6 +100,10 @@ export const createApp = ({ sessionStore } = {}) => {
   app.use('/api/matches', matchRoutes);
   app.use('/api/enrollments', enrollmentRoutes);
   app.use('/api/users', userRoutes);
+  app.use('/api/notifications', notificationRoutes);
+  app.use('/api/suggestions', (req, res, next) => (
+    req.method === 'POST' ? suggestionRateLimit(req, res, next) : next()
+  ), suggestionRoutes);
   app.use('/api/ai', aiRoutes);
 
   app.use((req, _res, next) => {

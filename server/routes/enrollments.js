@@ -6,6 +6,7 @@ import { enrollmentCreateSchema, enrollmentUpdateSchema } from '../validation.js
 import { validateBody } from '../middleware/validateBody.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { notifyEnrollmentsChanged } from '../realtime.js';
+import { notifyAdmins, notifyRecipient } from '../notifications.js';
 
 const router = Router();
 
@@ -51,6 +52,11 @@ router.post('/', requireAuth, validateBody(enrollmentCreateSchema), asyncHandler
     userId: req.user._id,
   });
   notifyEnrollmentsChanged(req.app.get('io'));
+  await notifyAdmins(req.app.get('io'), {
+    type: 'enrollment',
+    title: 'New enrollment',
+    message: 'A player has submitted a match enrollment.',
+  });
   return res.status(201).json({ data: toEnrollmentDto(enrollment) });
 }));
 
@@ -74,12 +80,24 @@ router.patch('/:id', requireAuth, requireAdmin, validateBody(enrollmentUpdateSch
   }
 
   notifyEnrollmentsChanged(req.app.get('io'));
+  await notifyRecipient(req.app.get('io'), enrollment.userId, {
+    type: 'enrollment',
+    title: 'Enrollment updated',
+    message: 'Your match enrollment details have been updated.',
+  });
   return res.json({ data: toEnrollmentDto(enrollment) });
 }));
 
 router.delete('/by-user/:userId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const result = await Enrollment.deleteMany({ userId: req.params.userId });
   notifyEnrollmentsChanged(req.app.get('io'));
+  if (result.deletedCount > 0) {
+    await notifyRecipient(req.app.get('io'), req.params.userId, {
+      type: 'enrollment',
+      title: 'Enrollments cancelled',
+      message: 'Your match enrollments were cancelled by an administrator.',
+    });
+  }
   res.json({ data: { deletedCount: result.deletedCount } });
 }));
 
@@ -100,6 +118,11 @@ router.delete('/:id', requireAuth, requireAdmin, asyncHandler(async (req, res, n
   }
 
   notifyEnrollmentsChanged(req.app.get('io'));
+  await notifyRecipient(req.app.get('io'), enrollment.userId, {
+    type: 'enrollment',
+    title: 'Enrollment cancelled',
+    message: 'Your match enrollment was cancelled.',
+  });
   return res.json({ data: { id: enrollment._id.toString(), deleted: true } });
 }));
 

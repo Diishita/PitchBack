@@ -5,14 +5,28 @@ import { LanguageContext } from '../context/LanguageContext';
 import {
   LogOut, Plus, Users, CalendarDays, ClipboardList,
   Trash2, BarChart2, Moon, Sun, ShieldBan, ShieldCheck,
-  CircleDot, Clock, MapPin, Trophy, TrendingUp, Edit3, Eye, X
+  CircleDot, Clock, MapPin, Trophy, TrendingUp, Edit3, Eye, X, MessageSquare
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 
 const BRAND = '#003673';
 
 const AdminDashboard = () => {
-  const { matches, users, enrollments, addMatch, deleteMatch, updateMatch, deleteUser, toggleBlockUser, logoutUser, theme, toggleTheme } = useContext(AppContext);
+  const {
+    matches,
+    users,
+    enrollments,
+    suggestions,
+    addMatch,
+    deleteMatch,
+    updateMatch,
+    deleteUser,
+    toggleBlockUser,
+    updateSuggestionStatus,
+    logoutUser,
+    theme,
+    toggleTheme,
+  } = useContext(AppContext);
   const { t, localizeDigits } = useContext(LanguageContext);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('matches');
@@ -77,6 +91,15 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleReviewSuggestion = async (suggestionId) => {
+    setActionError('');
+    try {
+      await updateSuggestionStatus(suggestionId, 'reviewed');
+    } catch (error) {
+      setActionError(error.message);
+    }
+  };
+
   const cityStats = useMemo(() => {
     const counts = {};
     users.filter(u => u.role === 'user').forEach(u => {
@@ -96,6 +119,7 @@ const AdminDashboard = () => {
     { id: 'matches',     label: t('matchesTab'),     icon: CalendarDays },
     { id: 'enrollments', label: t('enrollmentsTab'), icon: ClipboardList },
     { id: 'users',       label: t('usersTab'),        icon: Users },
+    { id: 'suggestions', label: t('suggestionsTab'),  icon: MessageSquare },
     { id: 'stats',       label: t('statsTab'),        icon: BarChart2 },
   ];
 
@@ -406,6 +430,59 @@ const AdminDashboard = () => {
                 )}
               </div>
             </div>
+          )}
+
+          {/* ── Suggestions Tab ── */}
+          {activeTab === 'suggestions' && (
+            <section>
+              <h2 className={`mb-1 text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                {t('suggestionsTab')}
+              </h2>
+              <p className="mb-6 text-sm text-slate-500">
+                {localizeDigits(suggestions.length)} {t('suggestionsReceived')}
+              </p>
+              {suggestions.length === 0 ? (
+                <div className={`rounded-3xl border p-12 text-center ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'}`}>
+                  <MessageSquare className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                  <p className="font-medium text-slate-500">{t('noSuggestions')}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                  {suggestions.map((suggestion) => (
+                    <article
+                      key={suggestion.id}
+                      className={`rounded-2xl border p-5 shadow-md ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'}`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <h3 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                            {suggestion.name}
+                          </h3>
+                          <time dateTime={suggestion.createdAt} className="mt-1 block text-xs text-slate-500">
+                            {new Date(suggestion.createdAt).toLocaleString()}
+                          </time>
+                        </div>
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${suggestion.status === 'new' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {suggestion.status === 'new' ? t('suggestionNew') : t('suggestionReviewed')}
+                        </span>
+                      </div>
+                      <p className={`mt-4 whitespace-pre-wrap break-words text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
+                        {suggestion.message}
+                      </p>
+                      {suggestion.status === 'new' && (
+                        <button
+                          type="button"
+                          onClick={() => handleReviewSuggestion(suggestion.id)}
+                          className="mt-4 rounded-lg bg-[#003673] px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                        >
+                          {t('markReviewed')}
+                        </button>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
 
           {/* ── Stats Tab ── */}

@@ -7,6 +7,8 @@ import {
   attachRealtime,
   notifyEnrollmentsChanged,
   notifyMatchesChanged,
+  notifyNotificationChanged,
+  notifySuggestionsChanged,
 } from './realtime.js';
 
 test('connected visitors receive match-change events without data payloads', async (t) => {
@@ -55,6 +57,48 @@ test('enrollment notifications target authenticated clients and contain no priva
   assert.deepEqual(notifications, [{
     room: 'authenticated',
     event: 'enrollments:changed',
+    payload: [],
+  }]);
+});
+
+test('notification-change signals target only the recipient and contain no notification data', () => {
+  const notifications = [];
+  const realtime = {
+    to(room) {
+      return {
+        emit(event, ...payload) {
+          notifications.push({ room, event, payload });
+        },
+      };
+    },
+  };
+
+  notifyNotificationChanged(realtime, 'player-123');
+
+  assert.deepEqual(notifications, [{
+    room: 'user:player-123',
+    event: 'notifications:changed',
+    payload: [],
+  }]);
+});
+
+test('suggestion-change signals target administrators without exposing suggestion content', () => {
+  const notifications = [];
+  const realtime = {
+    to(room) {
+      return {
+        emit(event, ...payload) {
+          notifications.push({ room, event, payload });
+        },
+      };
+    },
+  };
+
+  notifySuggestionsChanged(realtime);
+
+  assert.deepEqual(notifications, [{
+    room: 'admins',
+    event: 'suggestions:changed',
     payload: [],
   }]);
 });

@@ -62,6 +62,15 @@ export const blockUserSchema = z.object({
   isBlocked: z.boolean(),
 });
 
+export const suggestionCreateSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  message: z.string().trim().min(5).max(2000),
+});
+
+export const suggestionStatusSchema = z.object({
+  status: z.enum(['new', 'reviewed']),
+});
+
 export const matchRecommendationSchema = z.object({
   userProfile: z.string().trim().min(1).max(2000),
 });

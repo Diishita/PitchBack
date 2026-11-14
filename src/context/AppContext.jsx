@@ -7,14 +7,16 @@ const fetchAppData = async () => {
     api.auth.me(),
     api.matches.list(),
   ]);
-  const [enrollments, users] = user
+  const [enrollments, users, notifications, suggestions] = user
     ? await Promise.all([
       api.enrollments.list(),
       user.role === 'admin' ? api.users.list() : Promise.resolve([]),
+      api.notifications.list(),
+      user.role === 'admin' ? api.suggestions.list() : Promise.resolve([]),
     ])
-    : [[], []];
+    : [[], [], [], []];
 
-  return { user, matches, enrollments, users };
+  return { user, matches, enrollments, users, notifications, suggestions };
 };
 
 // Fast Refresh intentionally shares this context object with its provider.
@@ -25,6 +27,8 @@ export const AppProvider = ({ children }) => {
   const [users, setUsers] = useState([]);
   const [matches, setMatches] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
@@ -32,11 +36,20 @@ export const AppProvider = ({ children }) => {
 
   const loadData = useCallback(async () => {
     try {
-      const { user, matches, enrollments, users: loadedUsers } = await fetchAppData();
+      const {
+        user,
+        matches,
+        enrollments,
+        users: loadedUsers,
+        notifications: loadedNotifications,
+        suggestions: loadedSuggestions,
+      } = await fetchAppData();
       setCurrentUser(user);
       setMatches(matches);
       setEnrollments(enrollments);
       setUsers(loadedUsers);
+      setNotifications(loadedNotifications);
+      setSuggestions(loadedSuggestions);
       setDataError('');
     } catch (error) {
       console.error('[App] Could not load application data', error);
@@ -52,12 +65,21 @@ export const AppProvider = ({ children }) => {
     let active = true;
     const initialize = async () => {
       try {
-        const { user, matches: loadedMatches, enrollments: loadedEnrollments, users: loadedUsers } = await fetchAppData();
+        const {
+          user,
+          matches: loadedMatches,
+          enrollments: loadedEnrollments,
+          users: loadedUsers,
+          notifications: loadedNotifications,
+          suggestions: loadedSuggestions,
+        } = await fetchAppData();
         if (!active) return;
         setCurrentUser(user);
         setMatches(loadedMatches);
         setEnrollments(loadedEnrollments);
         setUsers(loadedUsers);
+        setNotifications(loadedNotifications);
+        setSuggestions(loadedSuggestions);
         setDataError('');
       } catch (error) {
         if (active) {
@@ -92,6 +114,8 @@ export const AppProvider = ({ children }) => {
     socket.on('matches:changed', loadData);
     socket.on('enrollments:changed', loadData);
     socket.on('users:changed', loadData);
+    socket.on('notifications:changed', loadData);
+    socket.on('suggestions:changed', loadData);
     socket.on('connect_error', (error) => {
       console.error('[Realtime] Connection failed', error.message);
     });
@@ -135,6 +159,8 @@ export const AppProvider = ({ children }) => {
       setCurrentUser(null);
       setUsers([]);
       setEnrollments([]);
+      setNotifications([]);
+      setSuggestions([]);
       setDataError('');
       return true;
     } catch (error) {
@@ -164,6 +190,21 @@ export const AppProvider = ({ children }) => {
     setEnrollments((currentEnrollments) => [newEnrollment, ...currentEnrollments]);
     setDataError('');
     return newEnrollment;
+  };
+
+  const dismissNotification = async (notificationId) => {
+    await api.notifications.dismiss(notificationId);
+    setNotifications((currentNotifications) => (
+      currentNotifications.filter((notification) => notification.id !== notificationId)
+    ));
+  };
+
+  const updateSuggestionStatus = async (suggestionId, status) => {
+    const updatedSuggestion = await api.suggestions.setStatus(suggestionId, status);
+    setSuggestions((currentSuggestions) => currentSuggestions.map((suggestion) => (
+      suggestion.id === suggestionId ? updatedSuggestion : suggestion
+    )));
+    return updatedSuggestion;
   };
 
   const deleteUser = async (userId) => {
@@ -196,6 +237,8 @@ export const AppProvider = ({ children }) => {
       users,
       matches,
       enrollments,
+      notifications,
+      suggestions,
       currentUser,
       theme,
       dataLoading,
@@ -207,6 +250,8 @@ export const AppProvider = ({ children }) => {
       deleteMatch,
       updateMatch,
       addEnrollment,
+      dismissNotification,
+      updateSuggestionStatus,
       deleteUser,
       toggleBlockUser,
       toggleTheme,

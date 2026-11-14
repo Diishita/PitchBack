@@ -57,6 +57,18 @@ export const api = {
     }),
     remove: (id) => request(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
+  notifications: {
+    list: (options) => request('/notifications', options),
+    dismiss: (id) => request(`/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
+  suggestions: {
+    create: (suggestion) => request('/suggestions', { method: 'POST', body: suggestion }),
+    list: (options) => request('/suggestions', options),
+    setStatus: (id, status) => request(`/suggestions/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: { status },
+    }),
+  },
   ai: {
     matchRecommendation: (userProfile) => request('/ai/match-recommendation', {
       method: 'POST',

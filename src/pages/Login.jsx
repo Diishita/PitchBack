@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LanguageContext } from '../context/LanguageContext';
 import { ArrowRight, MapPin, Phone, ShieldCheck, User } from 'lucide-react';
+import { useAsyncAction } from '../hooks/useAsyncAction';
 
 const Login = () => {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -14,8 +15,7 @@ const Login = () => {
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [speechError, setSpeechError] = useState('');
-  const [formError, setFormError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { error: formError, isPending: isSubmitting, run, clearError } = useAsyncAction();
   const recognitionRef = useRef(null);
   const recognitionActiveRef = useRef(false);
 
@@ -108,22 +108,17 @@ const Login = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setFormError('');
-    setIsSubmitting(true);
-    try {
-      const user = isRegistering
-        ? await registerUser({ username, email, password, contactNumber, city })
-        : await loginUser({ email, password });
-      navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
-    } catch (error) {
-      setFormError(error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    clearError();
+    const result = await run(() => (isRegistering
+      ? registerUser({ username, email, password, contactNumber, city })
+      : loginUser({ email, password })));
+    if (result.error) return;
+    const user = result.data;
+    navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
   };
 
   const switchMode = () => {
-    setFormError('');
+    clearError();
     setIsRegistering((registering) => !registering);
   };
 

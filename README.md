@@ -10,6 +10,8 @@ PitchBack is a cricket community portal concept for retired players. It helps pl
 - English, Hindi, and Marathi interface options, plus light and dark themes.
 - Voice-assisted navigation, search, and form dictation in supported browsers.
 - Gemini-powered match recommendations and low-impact warm-up/cool-down suggestions.
+- A persistent notification inbox for match, enrollment, and account events; notifications remain until dismissed.
+- A public suggestion form whose submissions are saved for administrators to review.
 
 ## Technology
 
@@ -79,7 +81,9 @@ Then open `http://127.0.0.1:5174`.
 
 ## API
 
-The Vite development server proxies `/api` and Socket.IO requests to the local Express server. Socket.IO broadcasts match-list changes to connected visitors and refreshes authenticated users' enrollment data without sending personal details in event payloads.
+The Vite development server proxies `/api` and Socket.IO requests to the local Express server. Socket.IO broadcasts match-list changes to connected visitors and sends private notification-change signals to their intended authenticated recipients. Notifications are stored in MongoDB until dismissed; notification records contain only safe summaries, never emergency or medical enrollment details.
+
+Notifications are triggered when matches are added, updated, or cancelled; when an enrollment is submitted, updated, or cancelled; when an account is created, blocked, restored, or removed; and when a visitor submits a suggestion. New enrollment, suggestion, and account events are sent to administrators, while enrollment and account updates are sent to the affected player.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -93,9 +97,16 @@ The Vite development server proxies `/api` and Socket.IO requests to the local E
 | PATCH, DELETE | `/api/enrollments/:id` | Update or delete an enrollment (admin only) |
 | GET | `/api/users` | List users (admin only) |
 | PATCH, DELETE | `/api/users/:id/block`, `/api/users/:id` | Block or delete a user (admin only) |
+| GET | `/api/notifications` | List the signed-in user's notifications |
+| DELETE | `/api/notifications/:id` | Dismiss one of the signed-in user's notifications |
+| POST | `/api/suggestions` | Submit a suggestion (public, limited to five per IP every 15 minutes) |
+| GET | `/api/suggestions` | Review suggestions (admin only) |
+| PATCH | `/api/suggestions/:id/status` | Mark a suggestion as reviewed or new (admin only) |
 | POST | `/api/ai/match-recommendation`, `/api/ai/fitness-advice` | Generate Gemini recommendations on the server |
 
 Passwords are bcrypt-hashed; sessions are stored in MongoDB and use an HttpOnly cookie. Production sessions require HTTPS and use credentialed CORS restricted to `FRONTEND_ORIGINS`. New registrations always receive the `user` role. The admin role can only be assigned by the private first-admin bootstrap settings. Enrollment requests take their user ID from the authenticated session, not from client input. Deleting a match or user also removes associated enrollments.
+
+Suggestions are stored in MongoDB with a new/reviewed status and can only be viewed or updated by administrators. GitHub Actions runs lint, tests, and a production build on pushes and pull requests targeting `main`; see `.github/workflows/ci.yml`.
 
 **Use fictional test data for the project demo.** Enrollment records include emergency and medical information. The local Compose ports are bound to `127.0.0.1`; a hosted deployment must use HTTPS and private environment variables.
 

@@ -56,3 +56,11 @@ export const notifyEnrollmentsChanged = (io) => {
 export const notifyUsersChanged = (io) => {
   io?.to('admins').emit('users:changed');
 };
+
+export const notifyNotificationChanged = (io, userId) => {
+  io?.to(`user:${userId}`).emit('notifications:changed');
+};
+
+export const notifySuggestionsChanged = (io) => {
+  io?.to('admins').emit('suggestions:changed');
+};

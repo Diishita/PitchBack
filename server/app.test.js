@@ -63,6 +63,39 @@ test('anonymous requests cannot create or manage matches', async (t) => {
   assert.equal(payload.error.code, 'AUTH_REQUIRED');
 });
 
+test('notification records cannot be read or dismissed without authentication', async (t) => {
+  const baseUrl = await startTestServer(t);
+  const [listResponse, dismissResponse] = await Promise.all([
+    fetch(`${baseUrl}/api/notifications`),
+    fetch(`${baseUrl}/api/notifications/507f1f77bcf86cd799439011`, { method: 'DELETE' }),
+  ]);
+
+  assert.equal(listResponse.status, 401);
+  assert.equal(dismissResponse.status, 401);
+});
+
+test('invalid public suggestions are rejected before database access', async (t) => {
+  const baseUrl = await startTestServer(t);
+  const response = await fetch(`${baseUrl}/api/suggestions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'A', message: 'Hi' }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(payload.error.code, 'VALIDATION_ERROR');
+});
+
+test('suggestion submissions can be read only by administrators', async (t) => {
+  const baseUrl = await startTestServer(t);
+  const response = await fetch(`${baseUrl}/api/suggestions`);
+  const payload = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(payload.error.code, 'AUTH_REQUIRED');
+});
+
 test('AI endpoint reports an explicit configuration error when its key is missing', async (t) => {
   const previousKey = process.env.GEMINI_API_KEY;
   delete process.env.GEMINI_API_KEY;

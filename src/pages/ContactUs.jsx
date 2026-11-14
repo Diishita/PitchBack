@@ -1,7 +1,9 @@
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { LanguageContext } from '../context/LanguageContext';
 import { MessageCircle, Phone, Mail, Send, MapPin } from 'lucide-react';
 import Footer from '../components/Footer';
+import { api } from '../services/api';
+import { useAsyncAction } from '../hooks/useAsyncAction';
 
 const InstagramIcon = (props) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -19,6 +21,10 @@ const FacebookIcon = (props) => (
 
 const ContactUs = () => {
   const { t, localizeDigits } = useContext(LanguageContext);
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const { isPending, error, run } = useAsyncAction();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -29,9 +35,7 @@ const ContactUs = () => {
     const handler = (e) => {
       const { intent } = e.detail || {};
       if (intent === 'open') {
-        // ensure we're on contact page; form is visible
-        // could focus the name input if needed
-        const nameInput = document.querySelector('input[placeholder]');
+        const nameInput = document.querySelector('#suggestion-name');
         if (nameInput) nameInput.focus();
       }
     };
@@ -39,9 +43,14 @@ const ContactUs = () => {
     return () => window.removeEventListener('voice-command', handler);
   }, []);
 
-  const handleSuggest = (e) => {
+  const handleSuggest = async (e) => {
     e.preventDefault();
-    alert(t('suggestionSuccess'));
+    setSubmitted(false);
+    const result = await run(() => api.suggestions.create({ name, message }));
+    if (result.error) return;
+    setName('');
+    setMessage('');
+    setSubmitted(true);
   };
 
   return (
@@ -126,18 +135,40 @@ const ContactUs = () => {
             <h2 className="text-3xl font-bold text-slate-800 mb-8 relative z-10">{t('suggestionBox')}</h2>
             
             <form onSubmit={handleSuggest} className="space-y-6 relative z-10">
+              {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
+              {submitted && <p role="status" className="rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">{t('suggestionSuccess')}</p>}
               <div>
-                <label className="block text-slate-700 text-sm font-semibold mb-2">{t('yourName')}</label>
-                <input type="text" required className="w-full bg-white/80 border border-amber-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" placeholder={t('yourName')} />
+                <label htmlFor="suggestion-name" className="block text-slate-700 text-sm font-semibold mb-2">{t('yourName')}</label>
+                <input
+                  id="suggestion-name"
+                  type="text"
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="w-full bg-white/80 border border-amber-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                  placeholder={t('yourName')}
+                />
               </div>
               
               <div>
-                <label className="block text-slate-700 text-sm font-semibold mb-2">{t('messageSuggestion')}</label>
-                <textarea required rows="4" className="w-full bg-white/80 border border-amber-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" placeholder={t('messageSuggestion')}></textarea>
+                <label htmlFor="suggestion-message" className="block text-slate-700 text-sm font-semibold mb-2">{t('messageSuggestion')}</label>
+                <textarea
+                  id="suggestion-message"
+                  required
+                  minLength={5}
+                  maxLength={2000}
+                  rows="4"
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  className="w-full bg-white/80 border border-amber-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                  placeholder={t('messageSuggestion')}
+                />
               </div>
 
-              <button type="submit" className="w-full bg-gradient-to-r from-[#D1AB3E] to-amber-500 hover:from-amber-500 hover:to-[#D1AB3E] text-slate-900 font-bold text-lg py-4 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2">
-                <Send className="w-5 h-5" /> {t('sendMsg')}
+              <button type="submit" disabled={isPending} className="w-full bg-gradient-to-r from-[#D1AB3E] to-amber-500 hover:from-amber-500 hover:to-[#D1AB3E] disabled:opacity-60 text-slate-900 font-bold text-lg py-4 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2">
+                <Send className="w-5 h-5" /> {isPending ? t('sendingSuggestion') : t('sendMsg')}
               </button>
             </form>
           </div>
