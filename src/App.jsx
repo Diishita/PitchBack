@@ -17,7 +17,10 @@ import EnrollmentForm from './pages/EnrollmentForm';
 import AdminDashboard from './pages/AdminDashboard';
 
 const ProtectedRoute = ({ children, role }) => {
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, dataLoading } = useContext(AppContext);
+  if (dataLoading) {
+    return <div role="status" className="p-8 text-center text-slate-600">Loading account...</div>;
+  }
   if (!currentUser) return <Navigate to="/login" />;
   if (role && currentUser.role !== role) {
     return <Navigate to={currentUser.role === 'admin' ? '/admin' : '/dashboard'} />;

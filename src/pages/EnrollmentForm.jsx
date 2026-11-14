@@ -36,7 +36,6 @@ const EnrollmentForm = () => {
     try {
       await addEnrollment({
         matchId,
-        userId: currentUser.id,
         ...formData
       });
       navigate('/dashboard');

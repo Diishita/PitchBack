@@ -11,6 +11,11 @@ const dateSchema = z.string()
       && date.getUTCDate() === day;
   }, 'Enter a real calendar date.');
 
+const emailSchema = z.string().trim().email().max(254).transform((email) => email.toLowerCase());
+const passwordSchema = z.string()
+  .min(12, 'Password must be at least 12 characters.')
+  .refine((password) => Buffer.byteLength(password, 'utf8') <= 72, 'Password is too long.');
+
 export const matchCreateSchema = z.object({
   title: z.string().trim().min(2).max(120),
   date: dateSchema,
@@ -25,7 +30,6 @@ export const matchUpdateSchema = matchCreateSchema.partial().refine(
 
 export const enrollmentCreateSchema = z.object({
   matchId: matchIdSchema,
-  userId: z.string().trim().min(1).max(100),
   playerName: z.string().trim().min(2).max(100),
   contactNumber: z.string().trim().min(6).max(25),
   dob: dateSchema,
@@ -41,8 +45,25 @@ export const enrollmentCreateSchema = z.object({
   address: z.string().trim().min(3).max(300),
 });
 
+export const registerSchema = z.object({
+  username: z.string().trim().min(2).max(100),
+  email: emailSchema,
+  password: passwordSchema,
+  contactNumber: z.string().trim().min(6).max(25),
+  city: z.string().trim().min(2).max(100),
+});
+
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1).max(72),
+});
+
+export const blockUserSchema = z.object({
+  isBlocked: z.boolean(),
+});
+
 export const enrollmentUpdateSchema = enrollmentCreateSchema
-  .omit({ matchId: true, userId: true })
+  .omit({ matchId: true })
   .partial()
   .refine(
     (enrollment) => Object.keys(enrollment).length > 0,

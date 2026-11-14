@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { enrollmentCreateSchema, matchCreateSchema, matchUpdateSchema } from './validation.js';
+import {
+  enrollmentCreateSchema,
+  loginSchema,
+  matchCreateSchema,
+  matchUpdateSchema,
+  registerSchema,
+} from './validation.js';
 
 test('accepts a valid match and trims its text fields', () => {
   const result = matchCreateSchema.parse({
@@ -39,5 +45,28 @@ test('coerces emergency age and rejects malformed enrollment data', () => {
   });
 
   assert.equal(valid.emergencyAge, 45);
+  assert.equal('userId' in valid, false);
   assert.equal(enrollmentCreateSchema.safeParse({ ...valid, emergencyAge: '' }).success, false);
+});
+
+test('requires a strong password, normalizes email, and strips client-supplied roles', () => {
+  const registration = registerSchema.safeParse({
+    username: 'Player One',
+    email: 'PLAYER@EXAMPLE.COM',
+    password: 'a-strong-password-123',
+    contactNumber: '9876543210',
+    city: 'Mumbai',
+    role: 'admin',
+  });
+  assert.equal(registration.success, true);
+  assert.equal(registration.data.email, 'player@example.com');
+  assert.equal('role' in registration.data, false);
+  assert.equal(registerSchema.safeParse({
+    username: 'Player One',
+    email: 'player@example.com',
+    password: 'short',
+    contactNumber: '9876543210',
+    city: 'Mumbai',
+  }).success, false);
+  assert.equal(loginSchema.safeParse({ email: 'not-an-email', password: 'whatever' }).success, false);
 });

@@ -22,7 +22,9 @@ const AdminDashboard = () => {
   const [viewingEnrollment, setViewingEnrollment] = useState(null);
   const [actionError, setActionError] = useState('');
 
-  const handleLogout = () => { logoutUser(); navigate('/'); };
+  const handleLogout = async () => {
+    if (await logoutUser()) navigate('/');
+  };
 
   const handleAddMatch = async (e) => {
     e.preventDefault();
@@ -61,6 +63,15 @@ const AdminDashboard = () => {
     setActionError('');
     try {
       await deleteUser(userId);
+    } catch (error) {
+      setActionError(error.message);
+    }
+  };
+
+  const handleToggleBlock = async (userId) => {
+    setActionError('');
+    try {
+      await toggleBlockUser(userId);
     } catch (error) {
       setActionError(error.message);
     }
@@ -369,7 +380,7 @@ const AdminDashboard = () => {
                     </div>
                     <div className="flex gap-2">
                        <button
-                        onClick={() => toggleBlockUser(u.id)}
+                        onClick={() => handleToggleBlock(u.id)}
                         className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
                           u.isBlocked
                             ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'

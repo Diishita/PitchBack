@@ -11,17 +11,30 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: 100,
   },
-  contactNumber: {
+  email: {
     type: String,
     required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    maxlength: 254,
+  },
+  passwordHash: {
+    type: String,
+    required: true,
+    select: false,
+  },
+  contactNumber: {
+    type: String,
     trim: true,
     maxlength: 25,
+    default: '',
   },
   city: {
     type: String,
-    required: true,
     trim: true,
     maxlength: 100,
+    default: '',
   },
   role: {
     type: String,
@@ -33,7 +46,5 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
 }, { timestamps: true });
-
-userSchema.index({ username: 1, contactNumber: 1 }, { unique: true });
 
 export const User = mongoose.models.User || mongoose.model('User', userSchema);

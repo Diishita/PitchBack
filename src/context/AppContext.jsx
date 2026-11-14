@@ -1,61 +1,76 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
+
+const fetchAppData = async () => {
+  const [user, matches] = await Promise.all([
+    api.auth.me(),
+    api.matches.list(),
+  ]);
+  const [enrollments, users] = user
+    ? await Promise.all([
+      api.enrollments.list(),
+      user.role === 'admin' ? api.users.list() : Promise.resolve([]),
+    ])
+    : [[], []];
+
+  return { user, matches, enrollments, users };
+};
 
 // Fast Refresh intentionally shares this context object with its provider.
 // eslint-disable-next-line react-refresh/only-export-components
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('cricket_users');
-    return saved ? JSON.parse(saved) : [
-      { id: '1', username: 'admin', contactNumber: '0000000000', city: 'All', role: 'admin' }
-    ];
-  });
-
+  const [users, setUsers] = useState([]);
   const [matches, setMatches] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
+  const [theme, setTheme] = useState(() => localStorage.getItem('cricket_theme') || 'light');
 
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('cricket_currentUser');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('cricket_theme');
-    return saved || 'light';
-  });
-
-  const [recentLogins, setRecentLogins] = useState(() => {
-    const saved = localStorage.getItem('cricket_recentLogins');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const loadData = useCallback(async () => {
+    try {
+      const { user, matches, enrollments, users: loadedUsers } = await fetchAppData();
+      setCurrentUser(user);
+      setMatches(matches);
+      setEnrollments(enrollments);
+      setUsers(loadedUsers);
+      setDataError('');
+    } catch (error) {
+      console.error('[App] Could not load application data', error);
+      setDataError(error.message);
+    } finally {
+      setDataLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const loadData = async () => {
+    localStorage.removeItem('cricket_currentUser');
+    localStorage.removeItem('cricket_users');
+    let active = true;
+    const initialize = async () => {
       try {
-        const [loadedMatches, loadedEnrollments] = await Promise.all([
-          api.matches.list({ signal: controller.signal }),
-          api.enrollments.list({ signal: controller.signal }),
-        ]);
+        const { user, matches: loadedMatches, enrollments: loadedEnrollments, users: loadedUsers } = await fetchAppData();
+        if (!active) return;
+        setCurrentUser(user);
         setMatches(loadedMatches);
         setEnrollments(loadedEnrollments);
+        setUsers(loadedUsers);
         setDataError('');
       } catch (error) {
-        if (!controller.signal.aborted) {
+        if (active) {
           console.error('[App] Could not load application data', error);
           setDataError(error.message);
         }
       } finally {
-        if (!controller.signal.aborted) setDataLoading(false);
+        if (active) setDataLoading(false);
       }
     };
-
-    loadData();
-    return () => controller.abort();
+    initialize();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -68,76 +83,50 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('cricket_theme', theme);
   }, [theme]);
 
-  useEffect(() => localStorage.setItem('cricket_users', JSON.stringify(users)), [users]);
-  useEffect(() => localStorage.setItem('cricket_recentLogins', JSON.stringify(recentLogins)), [recentLogins]);
-  
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('cricket_currentUser', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('cricket_currentUser');
-    }
-  }, [currentUser]);
-
   const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    setTheme((previousTheme) => previousTheme === 'dark' ? 'light' : 'dark');
   };
 
-  const addRecentLogin = (user) => {
-    if (user.role === 'admin') return;
-    const filtered = recentLogins.filter(r => r.username !== user.username);
-    setRecentLogins([{ username: user.username, contactNumber: user.contactNumber, city: user.city }, ...filtered].slice(0, 3));
+  const loginUser = async (credentials) => {
+    const user = await api.auth.login(credentials);
+    setCurrentUser(user);
+    await loadData();
+    setDataError('');
+    return user;
   };
 
-  const removeRecentLogin = (username) => {
-    setRecentLogins(recentLogins.filter(r => r.username !== username));
+  const registerUser = async (details) => {
+    const user = await api.auth.register(details);
+    setCurrentUser(user);
+    await loadData();
+    setDataError('');
+    return user;
   };
 
-  const loginUser = (username, contactNumber, city) => {
-    if (username.toLowerCase() === 'admin@admin.com') {
-      const adminUser = users.find(u => u.role === 'admin');
-      setCurrentUser(adminUser);
-      return adminUser;
+  const logoutUser = async () => {
+    try {
+      await api.auth.logout();
+      setCurrentUser(null);
+      setUsers([]);
+      setEnrollments([]);
+      setDataError('');
+      return true;
+    } catch (error) {
+      setDataError(error.message);
+      return false;
     }
-
-    let existingUser = users.find(u => u.username === username && u.contactNumber === contactNumber);
-    if (!existingUser) {
-      existingUser = {
-        id: Date.now().toString(),
-        username,
-        contactNumber,
-        city,
-        role: 'user',
-        isBlocked: false,
-        createdAt: new Date().toISOString()
-      };
-      setUsers([...users, existingUser]);
-    }
-
-    if (existingUser.isBlocked) {
-      alert('Your account has been blocked by the administrator.');
-      return null;
-    }
-
-    addRecentLogin(existingUser);
-    setCurrentUser(existingUser);
-    return existingUser;
-  };
-
-  const logoutUser = () => {
-    setCurrentUser(null);
   };
 
   const addMatch = async (match) => {
     const newMatch = await api.matches.create(match);
-    setMatches(currentMatches => [...currentMatches, newMatch]);
+    setMatches((currentMatches) => [...currentMatches, newMatch]);
     setDataError('');
     return newMatch;
   };
 
   const updateMatch = async (matchId, updatedMatch) => {
     const savedMatch = await api.matches.update(matchId, updatedMatch);
-    setMatches(currentMatches => currentMatches.map(match => (
+    setMatches((currentMatches) => currentMatches.map((match) => (
       match.id === matchId ? savedMatch : match
     )));
     setDataError('');
@@ -146,34 +135,56 @@ export const AppProvider = ({ children }) => {
 
   const addEnrollment = async (enrollment) => {
     const newEnrollment = await api.enrollments.create(enrollment);
-    setEnrollments(currentEnrollments => [newEnrollment, ...currentEnrollments]);
+    setEnrollments((currentEnrollments) => [newEnrollment, ...currentEnrollments]);
     setDataError('');
     return newEnrollment;
   };
 
   const deleteUser = async (userId) => {
-    await api.enrollments.removeForUser(userId);
-    setUsers(currentUsers => currentUsers.filter(user => user.id !== userId));
-    setEnrollments(currentEnrollments => currentEnrollments.filter(enrollment => enrollment.userId !== userId));
+    await api.users.remove(userId);
+    setUsers((currentUsers) => currentUsers.filter((user) => user.id !== userId));
+    setEnrollments((currentEnrollments) => currentEnrollments.filter(
+      (enrollment) => enrollment.userId !== userId,
+    ));
+  };
+
+  const toggleBlockUser = async (userId) => {
+    const user = users.find((item) => item.id === userId);
+    if (!user) return;
+    const updatedUser = await api.users.setBlocked(userId, !user.isBlocked);
+    setUsers((currentUsers) => currentUsers.map((item) => (
+      item.id === userId ? updatedUser : item
+    )));
   };
 
   const deleteMatch = async (matchId) => {
     await api.matches.remove(matchId);
-    setMatches(currentMatches => currentMatches.filter(match => match.id !== matchId));
-    setEnrollments(currentEnrollments => currentEnrollments.filter(enrollment => enrollment.matchId !== matchId));
-  };
-
-  const toggleBlockUser = (userId) => {
-    setUsers(users.map(u => 
-      u.id === userId ? { ...u, isBlocked: !u.isBlocked } : u
+    setMatches((currentMatches) => currentMatches.filter((match) => match.id !== matchId));
+    setEnrollments((currentEnrollments) => currentEnrollments.filter(
+      (enrollment) => enrollment.matchId !== matchId,
     ));
   };
 
   return (
     <AppContext.Provider value={{
-      users, matches, enrollments, currentUser, theme, recentLogins, dataLoading, dataError,
-      loginUser, logoutUser, addMatch, deleteMatch, updateMatch, addEnrollment, deleteUser,
-      toggleBlockUser, toggleTheme, removeRecentLogin
+      users,
+      matches,
+      enrollments,
+      currentUser,
+      theme,
+      dataLoading,
+      dataError,
+      loginUser,
+      registerUser,
+      logoutUser,
+      addMatch,
+      deleteMatch,
+      updateMatch,
+      addEnrollment,
+      deleteUser,
+      toggleBlockUser,
+      toggleTheme,
+      refreshData: loadData,
     }}>
       {children}
     </AppContext.Provider>

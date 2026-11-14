@@ -4,6 +4,7 @@ import { Match } from '../models/Match.js';
 import { Enrollment } from '../models/Enrollment.js';
 import { matchCreateSchema, matchUpdateSchema } from '../validation.js';
 import { validateBody } from '../middleware/validateBody.js';
+import { requireAdmin, requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.get('/', asyncHandler(async (_req, res) => {
   res.json({ data: matches.map(toMatchDto) });
 }));
 
-router.post('/', validateBody(matchCreateSchema), asyncHandler(async (req, res) => {
+router.post('/', requireAuth, requireAdmin, validateBody(matchCreateSchema), asyncHandler(async (req, res) => {
   const match = await Match.create(req.validatedBody);
   res.status(201).json({ data: toMatchDto(match) });
 }));
@@ -50,7 +51,7 @@ router.get('/:id', asyncHandler(async (req, res, next) => {
   return res.json({ data: toMatchDto(match) });
 }));
 
-router.patch('/:id', validateBody(matchUpdateSchema), asyncHandler(async (req, res, next) => {
+router.patch('/:id', requireAuth, requireAdmin, validateBody(matchUpdateSchema), asyncHandler(async (req, res, next) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return next(Object.assign(new Error('Match ID is invalid.'), {
       statusCode: 400,
@@ -72,7 +73,7 @@ router.patch('/:id', validateBody(matchUpdateSchema), asyncHandler(async (req, r
   return res.json({ data: toMatchDto(match) });
 }));
 
-router.delete('/:id', asyncHandler(async (req, res, next) => {
+router.delete('/:id', requireAuth, requireAdmin, asyncHandler(async (req, res, next) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return next(Object.assign(new Error('Match ID is invalid.'), {
       statusCode: 400,
