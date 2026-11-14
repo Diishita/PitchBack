@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { requireAdmin, requireAuth, toUserDto } from '../middleware/auth.js';
 import { blockUserSchema } from '../validation.js';
 import { validateBody } from '../middleware/validateBody.js';
+import { notifyEnrollmentsChanged, notifyUsersChanged } from '../realtime.js';
 
 const router = Router();
 
@@ -30,6 +31,10 @@ router.patch('/:id/block', validateBody(blockUserSchema), asyncHandler(async (re
       code: 'NOT_FOUND',
     }));
   }
+  if (user.isBlocked) {
+    req.app.get('io')?.in(`user:${user._id.toString()}`).disconnectSockets(true);
+  }
+  notifyUsersChanged(req.app.get('io'));
   return res.json({ data: toUserDto(user) });
 }));
 
@@ -50,6 +55,9 @@ router.delete('/:id', asyncHandler(async (req, res, next) => {
   }
 
   await Enrollment.deleteMany({ userId: user._id });
+  req.app.get('io')?.in(`user:${user._id.toString()}`).disconnectSockets(true);
+  notifyUsersChanged(req.app.get('io'));
+  notifyEnrollmentsChanged(req.app.get('io'));
   return res.json({ data: { id: user._id.toString(), deleted: true } });
 }));
 

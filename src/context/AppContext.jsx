@@ -1,4 +1,5 @@
 import { createContext, useCallback, useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
 import { api } from '../services/api';
 
 const fetchAppData = async () => {
@@ -72,6 +73,28 @@ export const AppProvider = ({ children }) => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (dataLoading) return undefined;
+
+    const socket = io();
+    let isFirstConnection = true;
+    socket.on('connect', () => {
+      if (isFirstConnection) {
+        isFirstConnection = false;
+        return;
+      }
+      loadData();
+    });
+    socket.on('matches:changed', loadData);
+    socket.on('enrollments:changed', loadData);
+    socket.on('users:changed', loadData);
+    socket.on('connect_error', (error) => {
+      console.error('[Realtime] Connection failed', error.message);
+    });
+
+    return () => socket.disconnect();
+  }, [currentUser?.id, dataLoading, loadData]);
 
   useEffect(() => {
     const root = window.document.documentElement;

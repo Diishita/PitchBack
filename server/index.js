@@ -1,10 +1,12 @@
 import 'dotenv/config';
 import { randomBytes } from 'node:crypto';
+import { createServer } from 'node:http';
 import bcrypt from 'bcryptjs';
 import MongoStore from 'connect-mongo';
 import mongoose from 'mongoose';
 import { User } from './models/User.js';
 import { createApp } from './app.js';
+import { attachRealtime } from './realtime.js';
 
 const createAdminIfConfigured = async () => {
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
@@ -63,13 +65,17 @@ const startServer = async () => {
     ttl: 8 * 60 * 60,
   });
   const app = createApp({ sessionStore });
+  const httpServer = createServer(app);
+  const io = attachRealtime(httpServer, app.get('sessionMiddleware'));
+  app.set('io', io);
   const port = Number(process.env.PORT || 5000);
-  const server = app.listen(port, '127.0.0.1', () => {
-    console.log(`[API] Listening at http://127.0.0.1:${port}`);
+  const host = process.env.API_HOST || '127.0.0.1';
+  httpServer.listen(port, host, () => {
+    console.log(`[API] Listening at http://${host}:${port}`);
   });
 
   const shutdown = async () => {
-    server.close();
+    await new Promise((resolve) => io.close(resolve));
     await mongoose.disconnect();
   };
 

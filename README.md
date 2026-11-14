@@ -56,9 +56,20 @@ npm run dev
 
 The API health check is available at `http://127.0.0.1:5000/api/health`; the frontend is served at the URL Vite prints in its terminal.
 
+## Run with Docker
+
+Install Docker Desktop, make sure the project-root `.env` contains a working `MONGODB_URI` and `SESSION_SECRET`, then run:
+
+```sh
+docker compose up --build
+```
+
+Open `http://127.0.0.1:5173`. Compose runs the API and Vite frontend in separate containers, waits for the API health check, and uses the configured MongoDB database. Both published ports are limited to the local machine. Stop the containers with `Ctrl+C`; run `docker compose down` to remove them.
+
 ## API
 
 The Vite development server proxies `/api` requests to the local Express server.
+Socket.IO broadcasts match-list changes to connected visitors and refreshes authenticated users' enrollment data without sending personal details in event payloads.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -75,7 +86,7 @@ The Vite development server proxies `/api` requests to the local Express server.
 
 Passwords are bcrypt-hashed; sessions are stored in MongoDB and use an HttpOnly, SameSite cookie. New registrations always receive the `user` role. The admin role can only be assigned by the private first-admin bootstrap settings. Enrollment requests take their user ID from the authenticated session, not from client input. Deleting a match or user also removes associated enrollments.
 
-**The API is intentionally local-development only.** It binds to `127.0.0.1` and refuses to start in production. Enrollment records include emergency and medical information; use fictional test data only, and do not expose this API to a network.
+**The API is intentionally local-development only.** Native startup binds to `127.0.0.1`; Docker publishes its ports only on the local machine. The API refuses to start in production. Enrollment records include emergency and medical information; use fictional test data only, and do not expose this API to a network.
 
 ## Checks
 

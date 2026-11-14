@@ -5,6 +5,7 @@ import { Match } from '../models/Match.js';
 import { enrollmentCreateSchema, enrollmentUpdateSchema } from '../validation.js';
 import { validateBody } from '../middleware/validateBody.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
+import { notifyEnrollmentsChanged } from '../realtime.js';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ router.post('/', requireAuth, validateBody(enrollmentCreateSchema), asyncHandler
     ...req.validatedBody,
     userId: req.user._id,
   });
+  notifyEnrollmentsChanged(req.app.get('io'));
   return res.status(201).json({ data: toEnrollmentDto(enrollment) });
 }));
 
@@ -71,11 +73,13 @@ router.patch('/:id', requireAuth, requireAdmin, validateBody(enrollmentUpdateSch
     }));
   }
 
+  notifyEnrollmentsChanged(req.app.get('io'));
   return res.json({ data: toEnrollmentDto(enrollment) });
 }));
 
 router.delete('/by-user/:userId', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const result = await Enrollment.deleteMany({ userId: req.params.userId });
+  notifyEnrollmentsChanged(req.app.get('io'));
   res.json({ data: { deletedCount: result.deletedCount } });
 }));
 
@@ -95,6 +99,7 @@ router.delete('/:id', requireAuth, requireAdmin, asyncHandler(async (req, res, n
     }));
   }
 
+  notifyEnrollmentsChanged(req.app.get('io'));
   return res.json({ data: { id: enrollment._id.toString(), deleted: true } });
 }));
 

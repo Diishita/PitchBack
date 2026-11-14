@@ -29,7 +29,7 @@ export const createApp = ({ sessionStore } = {}) => {
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(express.json({ limit: '100kb' }));
-  app.use(session({
+  const sessionMiddleware = session({
     name: 'pitchback.sid',
     secret: sessionSecret,
     store: sessionStore,
@@ -41,7 +41,9 @@ export const createApp = ({ sessionStore } = {}) => {
       secure: process.env.NODE_ENV === 'production',
       maxAge: 8 * 60 * 60 * 1000,
     },
-  }));
+  });
+  app.use(sessionMiddleware);
+  app.set('sessionMiddleware', sessionMiddleware);
 
   app.get('/api/health', (_req, res) => {
     const connected = mongoose.connection.readyState === 1;

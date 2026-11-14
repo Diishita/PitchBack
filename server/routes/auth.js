@@ -5,6 +5,7 @@ import { User } from '../models/User.js';
 import { toUserDto } from '../middleware/auth.js';
 import { loginSchema, registerSchema } from '../validation.js';
 import { validateBody } from '../middleware/validateBody.js';
+import { notifyUsersChanged } from '../realtime.js';
 
 const router = Router();
 
@@ -41,6 +42,7 @@ router.post('/register', validateBody(registerSchema), asyncHandler(async (req, 
   });
 
   await startSession(req, user);
+  notifyUsersChanged(req.app.get('io'));
   return res.status(201).json({ data: toUserDto(user) });
 }));
 
@@ -78,6 +80,8 @@ router.get('/me', asyncHandler(async (req, res) => {
 }));
 
 router.post('/logout', asyncHandler(async (req, res) => {
+  const userId = req.session?.userId;
+  if (userId) req.app.get('io')?.in(`user:${userId}`).disconnectSockets(true);
   if (req.session) await sessionOperation(req.session, 'destroy');
   res.clearCookie('pitchback.sid');
   return res.json({ data: { loggedOut: true } });
